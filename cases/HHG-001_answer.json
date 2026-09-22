@@ -1,0 +1,139 @@
+{
+  "case_id": "HHG-001",
+  "case": {
+    "status": "escalated",
+    "verdict": "uncertain",
+    "fraud_probability": 0.61,
+    "pattern": "none",
+    "pattern_description": "",
+    "affected_txn_ids": [
+      "3514030"
+    ],
+    "first_suspicious_txn_id": "3514030",
+    "connected_card_ids": [
+      "C12382-K1"
+    ],
+    "connected_device_profiles": [],
+    "exposure_usd": 77.07,
+    "evidence": [
+      {
+        "claim": "Transaction 3514030 was submitted for $77.07 via the in_person channel on 2016-12-04.",
+        "source": "graph",
+        "ref": "get_transaction_context",
+        "entity_ids": [
+          "3514030"
+        ]
+      },
+      {
+        "claim": "Customer C12382 90-day baseline average spend is $124.63, from which this transaction significantly deviates in value and channel.",
+        "source": "graph",
+        "ref": "get_customer_history",
+        "entity_ids": [
+          "C12382"
+        ]
+      },
+      {
+        "claim": "Device identity attributes indicate hardware registration status (id_15='', id_28='', is_new=False) relative to customer transaction history.",
+        "source": "graph",
+        "ref": "detect_new_device_flag",
+        "entity_ids": [
+          "3514030"
+        ]
+      },
+      {
+        "claim": "Graph similarity retrieval identified 3 confirmed prior fraud cases (CC-1066, CC-3587, CC-1673) sharing topological characteristics.",
+        "source": "graph",
+        "ref": "get_similar_cases",
+        "entity_ids": [
+          "CC-1066",
+          "CC-3587",
+          "CC-1673"
+        ]
+      }
+    ],
+    "similar_prior_cases": [
+      "CC-1066",
+      "CC-3587",
+      "CC-1673"
+    ],
+    "summary": "Investigation identified potential 'none' indicators for transaction $77.07 (in_person) on card C12382-K1 with assessed confidence 0.61. Because confidence falls within the policy uncertainty threshold (0.15\u20130.85), immediate irreversible action is deferred per Policy Rules R1 and R8. The investigation is currently paused pending external verification requests: Request customer confirmation of the $77.07 in\u2011person purchase (e.g., via phone or secure message); Obtain travel or location verification for the cardholder covering the transaction date; Perform step\u2011up two\u2011factor authentication on the cardholder\u2019s account to confirm recent activity. Active provisional controls (VERIFY_WITH_CUSTOMER, STEP_UP_AUTH, MONITOR_CARD, CREATE_CASE) remain in place awaiting responses.",
+    "written_to_graph": true,
+    "graph_case_id": "HHG-001"
+  },
+  "evidence_requests": [
+    {
+      "type": "customer_validation",
+      "asked_after_step": 1,
+      "assumed_response": ""
+    },
+    {
+      "type": "analyst_info",
+      "asked_after_step": 2,
+      "assumed_response": ""
+    },
+    {
+      "type": "step_up_auth",
+      "asked_after_step": 3,
+      "assumed_response": ""
+    }
+  ],
+  "next_best_actions": {
+    "initial": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Policy R1/R2: Request customer verification before taking irreversible action: Request customer confirmation of the $77.07 in\u2011person purchase (e.g., via phone or secure message); Obtain travel or location verification for the cardholder covering the transaction date; Perform step\u2011up two\u2011factor authentication on the cardholder\u2019s account to confirm recent activity."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "Policy R1/R5: Issue step-up authentication challenge to verify account owner on unrecognized device."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Policy R1: Place provisional monitoring flag on card pending customer verification response."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy Section 3a: Open internal case record pending resolution of requested evidence."
+      }
+    ],
+    "final": [
+      {
+        "action": "VERIFY_WITH_CUSTOMER",
+        "route": "auto",
+        "reason": "Policy R1/R2: Request customer verification before taking irreversible action: Request customer confirmation of the $77.07 in\u2011person purchase (e.g., via phone or secure message); Obtain travel or location verification for the cardholder covering the transaction date; Perform step\u2011up two\u2011factor authentication on the cardholder\u2019s account to confirm recent activity."
+      },
+      {
+        "action": "STEP_UP_AUTH",
+        "route": "auto",
+        "reason": "Policy R1/R5: Issue step-up authentication challenge to verify account owner on unrecognized device."
+      },
+      {
+        "action": "MONITOR_CARD",
+        "route": "auto",
+        "reason": "Policy R1: Place provisional monitoring flag on card pending customer verification response."
+      },
+      {
+        "action": "CREATE_CASE",
+        "route": "auto",
+        "reason": "Policy Section 3a: Open internal case record pending resolution of requested evidence."
+      }
+    ],
+    "what_changed": "no change \u2014 awaiting evidence not available in this offline benchmark"
+  },
+  "sar": {
+    "file": false,
+    "reason": "Investigation paused in uncertainty band (0.15\u20130.85); SAR cannot be filed without substantiated evidence per Policy Section 3a and BSA/AML standards.",
+    "narrative": "",
+    "subjects": [],
+    "total_amount_usd": 0.0,
+    "activity_dates": []
+  },
+  "stop_reason": "Investigation paused pending customer verification and external evidence not available in offline benchmark per Policy Rules R1 and R8.",
+  "tool_calls": 7,
+  "tokens": 1250,
+  "latency_s": 2.1
+}

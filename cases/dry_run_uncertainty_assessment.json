@@ -1,0 +1,533 @@
+[
+  {
+    "case_id": "HHG-001",
+    "flagged_txn_id": "3514030",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3514030 ($77.07, in billing region 444.0) at 0.61. Review and decide.",
+    "trigger_risk_score": 0.61,
+    "risk_assessment": {
+      "pattern_matched": "none",
+      "risk_level": "medium",
+      "confidence": 0.61,
+      "reasoning": "The transaction matches the cardholder's normal behavior: in\u2011person purchase, product W, amount $77 is below the 90\u2011day average $124, and the billing region 444.0 appears in the customer's historical region list. Graph signals show no card\u2011testing, device\u2011sharing, out\u2011of\u2011region, or new\u2011device activity, and similar past fraud cases involve out\u2011of\u2011region use, which is not present here."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Request customer confirmation of the $77.07 in\u2011person purchase (e.g., via phone or secure message)",
+      "Obtain travel or location verification for the cardholder covering the transaction date",
+      "Perform step\u2011up two\u2011factor authentication on the cardholder\u2019s account to confirm recent activity"
+    ],
+    "retrieved_policies": [
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Policy Rule R8 \u2014 Escalation on Uncertainty",
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Investigation Stopping Criteria"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-002",
+    "flagged_txn_id": "3478782",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3478782 ($292.36, online) at 0.79. Review and decide.",
+    "trigger_risk_score": 0.79,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_fraud",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The $292.36 online purchase is far above the customer's 90\u2011day max ($90.54) and triggers a high model risk score (0.79). Graph signals show no device sharing or new device, but the transaction matches the \"card_not_present_fraud\" pattern seen in similar confirmed cases with shared email domain, providing supporting evidence."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer confirmation that the transaction was authorized",
+      "Request recent travel or location verification for the cardholder",
+      "Perform step\u2011up two\u2011factor authentication on the cardholder's account",
+      "Gather detailed device fingerprint data for the transaction source"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R8 \u2014 Escalation on Uncertainty",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)",
+      "Investigation Stopping Criteria",
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-003",
+    "flagged_txn_id": "3530164",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C08623 message: 'I never made this $49.00 purchase. Please check my card.' Refers to 3530164.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "none",
+      "risk_level": "low",
+      "confidence": 0.4,
+      "reasoning": "The $49 in\u2011person purchase aligns with the customer\u2019s normal channel and amount range; graph signals show no out\u2011of\u2011region use, no device sharing, and no card\u2011testing pattern. The only flag is the customer dispute, which alone does not outweigh the benign baseline."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Confirm cardholder\u2019s location at the time of the transaction",
+      "Obtain travel itinerary or proof of presence near billing region 330.0",
+      "Request step\u2011up two\u2011factor authentication verification for the card"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R2 \u2014 Customer Dispute & Denial",
+      "Pattern 1 \u2014 Card Testing (Policy R5)",
+      "Policy Rule R4 \u2014 Unresponsive Customer Window",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-004",
+    "flagged_txn_id": "3583227",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C08106 message: 'I never made this $128.33 purchase. Please check my card.' Refers to 3583227.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The transaction was made from a brand\u2011new device (id_15 and id_28 marked \u201cNew\u201d) and the customer has filed a dispute, satisfying the account\u2011takeover criteria. The same card and customer were involved in a confirmed fraud case (CC\u20113778) with a similar online purchase, reinforcing the risk."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Confirm the cardholder\u2019s recent travel locations",
+      "Obtain step\u2011up two\u2011factor authentication verification for the device",
+      "Request detailed device fingerprint logs for the past 30 days"
+    ],
+    "retrieved_policies": [
+      "Pattern 1 \u2014 Card Testing (Policy R5)",
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R5 \u2014 Card Testing Intervention"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-005",
+    "flagged_txn_id": "3523199",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3523199 ($100.07, online) at 0.54. Review and decide.",
+    "trigger_risk_score": 0.54,
+    "risk_assessment": {
+      "pattern_matched": "account_takeover",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The transaction is online on a new device flagged as new, uses a product code (R) and channel not seen in the customer's 90\u2011day baseline, and matches prior confirmed fraud cases (CC\u20112400, CC\u20112717) for the same card and customer. Device sharing is high but combined with these signals triggers the account takeover pattern per Policy R6 and Pattern 3."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer verification of the transaction (e.g., via phone call or secure message)",
+      "Request travel itinerary or location verification for the transaction time",
+      "Initiate step\u2011up two\u2011factor authentication for the cardholder"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R2 \u2014 Customer Dispute & Denial",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-006",
+    "flagged_txn_id": "3476682",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C07297 message: 'I never made this $482.12 purchase. Please check my card.' Refers to 3476682.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The online transaction uses a device flagged as new for this customer and the device fingerprint is shared across many accounts, but the amount ($482.12) is far above the customer's typical online spend and online usage is rare. Similar past confirmed fraud cases (CC-5111, CC-1476) with the same pattern and shared device increase the suspicion."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer confirmation of the transaction via phone or secure messaging",
+      "Request recent travel itinerary or location verification",
+      "Initiate step-up two-factor authentication for the cardholder"
+    ],
+    "retrieved_policies": [
+      "Pattern 3 — Card-Not-Present Fraud from New Device",
+      "Policy Rule R1 — Customer Dispute & Denial",
+      "Policy Rule R8 — Escalation on Uncertainty",
+      "Policy Rule R6 — Shared Origin & Multi-Card Rings"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-007",
+    "flagged_txn_id": "3514948",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3514948 ($111.92, in billing region 264.0) at 0.87. Review and decide.",
+    "trigger_risk_score": 0.87,
+    "risk_assessment": {
+      "pattern_matched": "none",
+      "risk_level": "medium",
+      "confidence": 0.4,
+      "reasoning": "The transaction is in\u2011person, uses the cardholder\u2019s usual billing region (264.0) and amount ($111.92) falls within the 90\u2011day average ($128.16). Graph signals show no out\u2011of\u2011region activity, no device sharing, and no card\u2011testing pattern, but the real\u2011time model assigned a high risk score (0.87), creating uncertainty."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Ask the cardholder to confirm the $111.92 in\u2011person purchase",
+      "Obtain travel itinerary for the cardholder covering the transaction date",
+      "Trigger step\u2011up two\u2011factor authentication for the card"
+    ],
+    "retrieved_policies": [
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Policy Rule R8 \u2014 Escalation on Uncertainty",
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-008",
+    "flagged_txn_id": "3558054",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C13171 message: 'I never made this $55.68 purchase. Please check my card.' Refers to 3558054.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "account_takeover",
+      "risk_level": "medium",
+      "confidence": 0.62,
+      "reasoning": "The transaction uses a device fingerprint that is shared by 171 customers and cards, and the customer has filed a dispute, satisfying the device\u2011sharing plus dispute trigger condition for account takeover. Although the amount ($55.68) is close to the 90\u2011day average and the channel is typical, the card_testing signal and shared device raise moderate concern."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain recent travel itinerary or location verification from the customer",
+      "Request step\u2011up authentication logs for the device at the time of the transaction",
+      "Gather detailed device usage history for this fingerprint across the customer\u2019s account"
+    ],
+    "retrieved_policies": [
+      "Pattern 1 \u2014 Card Testing (Policy R5)",
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Policy Rule R5 \u2014 Card Testing Intervention",
+      "Policy Rule R2 \u2014 Customer Dispute & Denial"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-009",
+    "flagged_txn_id": "3581141",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C08299 message: 'I never made this $30.02 purchase. Please check my card.' Refers to 3581141.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "medium",
+      "confidence": 0.62,
+      "reasoning": "The transaction is online and matches the customer\u2019s usual channel and product, but the device is flagged as new for this account while no proxy is detected. Combined with the customer\u2011reported dispute, the new\u2011device signal raises moderate concern despite a low risk score and baseline\u2011consistent amount."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Confirm the cardholder\u2019s recent travel locations to rule out legitimate out\u2011of\u2011region activity",
+      "Request step\u2011up two\u2011factor authentication verification for the disputed transaction",
+      "Obtain detailed device fingerprint data (OS, browser, screen resolution) to assess uniqueness"
+    ],
+    "retrieved_policies": [
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R2 \u2014 Customer Dispute & Denial",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)",
+      "Pattern 5 \u2014 Account Takeover"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-010",
+    "flagged_txn_id": "3506725",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3506725 ($1,000.03, online) at 0.90. Review and decide.",
+    "trigger_risk_score": 0.9,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "high",
+      "confidence": 0.88,
+      "reasoning": "The transaction uses a device flagged as new for this customer, exceeds the 90\u2011day max amount ($1,000\u202fvs\u202f$670) and matches confirmed fraud cases that involved the same Windows\u202f10/edge fingerprint. Although the device is shared across many accounts, the new\u2011device flag combined with the high amount and pattern\u20113 similarity outweighs benign sharing."
+    },
+    "needs_more_evidence": false,
+    "evidence_requests": [],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R2 \u2014 Customer Dispute & Denial",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-011",
+    "flagged_txn_id": "3583368",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C11923 message: 'I never made this $131.30 purchase. Please check my card.' Refers to 3583368.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "card_testing",
+      "risk_level": "critical",
+      "confidence": 0.92,
+      "reasoning": "confirmed card testing: sequence of 225 small authorizations followed by larger attempt"
+    },
+    "needs_more_evidence": false,
+    "evidence_requests": [],
+    "retrieved_policies": [
+      "Pattern 1 \u2014 Card Testing (Policy R5)",
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R5 \u2014 Card Testing Intervention"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-012",
+    "flagged_txn_id": "3553342",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3553342 ($30.91, in billing region 494.0) at 0.55. Review and decide.",
+    "trigger_risk_score": 0.55,
+    "risk_assessment": {
+      "pattern_matched": "none",
+      "risk_level": "medium",
+      "confidence": 0.6,
+      "reasoning": "The transaction aligns with the customer's 90\u2011day baseline (in\u2011person, low amount, common product) and graph signals show no out\u2011of\u2011region use, device sharing, or new device activity. Although the model score is 0.55, the card\u2011testing flag does not apply to this in\u2011person purchase, so overall fraud risk remains moderate."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Ask the cardholder to confirm whether they made a $30.91 in\u2011person purchase in billing region 494.0 on 2016\u201112\u201118",
+      "Obtain travel or location verification for the customer covering the transaction date",
+      "Perform a step\u2011up authentication (e.g., OTP) for the card to confirm legitimacy"
+    ],
+    "retrieved_policies": [
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Pattern 1 \u2014 Card Testing (Policy R5)",
+      "Policy Rule R5 \u2014 Card Testing Intervention",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-013",
+    "flagged_txn_id": "3526826",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3526826 ($35.66, online) at 0.76. Review and decide.",
+    "trigger_risk_score": 0.76,
+    "risk_assessment": {
+      "pattern_matched": "account_takeover",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The transaction is an online, low\u2011value purchase on a device flagged as new for this customer, while the same device fingerprint is shared by 253 other accounts, and a prior confirmed fraud case (CC-4294) involved the same customer and similar shared\u2011email signals. Combined with a model risk score of 0.76 and the rarity of online activity in the 90\u2011day baseline, these signals satisfy Policy R6 and Pattern 3 criteria for account takeover."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer confirmation of the $35.66 online purchase",
+      "Request travel or location verification for the customer at the transaction time",
+      "Initiate step\u2011up two\u2011factor authentication for the card and monitor subsequent activity"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-014",
+    "flagged_txn_id": "3478561",
+    "trigger_type": "analyst_request",
+    "trigger_text": "Analyst request: several cards this month show purchases from the same unusual device profile. Review transaction 3478561 on card C13487-K1 and look for related activity.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "account_takeover",
+      "risk_level": "high",
+      "confidence": 0.88,
+      "reasoning": "The transaction uses a brand\u2011new device for this cardholder that is shared by 52 other customers, flagged as a new device with an anonymous proxy and matches two prior confirmed fraud cases using the same SM\u2011G935F profile. The online purchase amount and channel deviate from the customer's 90\u2011day baseline, satisfying Policy R6 and Pattern 3 criteria for account takeover."
+    },
+    "needs_more_evidence": false,
+    "evidence_requests": [],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Pattern 5 \u2014 Account Takeover"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-015",
+    "flagged_txn_id": "3464869",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3464869 ($599.94, online) at 0.77. Review and decide.",
+    "trigger_risk_score": 0.77,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The transaction is online, uses a device flagged as new for this customer and the same device is shared across many accounts, and the amount ($599.94) exceeds the customer's 90\u2011day maximum ($550.03). A similar confirmed fraud case (CC\u20110615) involving the same customer and pattern was found, raising strong suspicion."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer confirmation of the $599.94 purchase",
+      "Request step\u2011up two\u2011factor authentication for the card",
+      "Verify recent travel or location of the cardholder"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-016",
+    "flagged_txn_id": "3534820",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C09988 message: 'I never made this $59.67 purchase. Please check my card.' Refers to 3534820.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The transaction uses a new device (id_15=New) that has never been seen on this customer's account and the device fingerprint is shared across many customers, matching Pattern 3 (card_not_present_new_device). The customer has disputed the charge, and similar historical fraud cases with the same device fingerprint were confirmed fraud, triggering Policy R6 and Policy R2 actions."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain recent travel itinerary or location verification for the customer",
+      "Request step\u2011up two\u2011factor authentication log for the disputed transaction",
+      "Provide IP address and geolocation data for the transaction",
+      "Supply recent device usage logs for this card and customer",
+      "Ask the customer for a signed affidavit confirming the transaction was not authorized"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R2 \u2014 Customer Dispute & Denial",
+      "Pattern 5 \u2014 Account Takeover"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-017",
+    "flagged_txn_id": "3450629",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3450629 ($100.09, online) at 0.57. Review and decide.",
+    "trigger_risk_score": 0.57,
+    "risk_assessment": {
+      "pattern_matched": "none",
+      "risk_level": "low",
+      "confidence": 0.62,
+      "reasoning": "No fraud signals: transaction amount ($100.09) is below 90-day baseline average ($268.03), channel is consistent with cardholder history, billing region matches historical regions, and device has 3 prior uses on this account with no new device or proxy flags."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer confirmation whether the transaction was authorized",
+      "Request recent travel or location verification for the cardholder",
+      "Initiate step-up two-factor authentication for the next transaction attempt"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R8 — Escalation on Uncertainty",
+      "Policy Rule R1 — Customer Dispute & Denial",
+      "Policy Rule R6 — Shared Origin & Multi-Card Rings",
+      "Investigation Stopping Criteria"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-018",
+    "flagged_txn_id": "3491361",
+    "trigger_type": "customer_report",
+    "trigger_text": "Customer C02354 message: 'I never made this $39.08 purchase. Please check my card.' Refers to 3491361.",
+    "trigger_risk_score": 0.0,
+    "risk_assessment": {
+      "pattern_matched": "none",
+      "risk_level": "low",
+      "confidence": 0.7,
+      "reasoning": "The $39.08 in\u2011person purchase matches the cardholder\u2019s 90\u2011day baseline (channel, product code and amount are typical) and graph signals show no out\u2011of\u2011region, device\u2011sharing, or new\u2011device anomalies. The only flag is the customer dispute, which by policy is not enough alone to label fraud."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain merchant receipt and POS location for transaction 3491361",
+      "Confirm the cardholder\u2019s physical location at the time of the purchase",
+      "Ask the customer about recent travel or presence in billing region 126.0"
+    ],
+    "retrieved_policies": [
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Pattern 5 \u2014 Account Takeover",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Pattern 1 \u2014 Card Testing (Policy R5)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-019",
+    "flagged_txn_id": "3503878",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3503878 ($99.92, online) at 0.90. Review and decide.",
+    "trigger_risk_score": 0.9,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "high",
+      "confidence": 0.78,
+      "reasoning": "The transaction is online, scored 0.90, and uses a device fingerprint flagged as new for this customer while also being shared across multiple accounts. Policy Pattern 3 (card_not_present_new_device) applies, and no out\u2011of\u2011region or dispute signals are present, so the case leans toward fraud but uncertainty remains."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Obtain customer confirmation of the $99.92 online purchase",
+      "Perform step\u2011up two\u2011factor authentication for the card",
+      "Verify recent travel or location of the cardholder"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Policy Rule R2 \u2014 Customer Dispute & Denial",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  },
+  {
+    "case_id": "HHG-020",
+    "flagged_txn_id": "3509359",
+    "trigger_type": "risk_score",
+    "trigger_text": "Real-time model scored transaction 3509359 ($125.08, online) at 0.52. Review and decide.",
+    "trigger_risk_score": 0.52,
+    "risk_assessment": {
+      "pattern_matched": "card_not_present_new_device",
+      "risk_level": "medium",
+      "confidence": 0.62,
+      "reasoning": "The transaction is online and uses a device flagged as new for this customer, while the 90\u2011day baseline shows only in\u2011person purchases. Although the device fingerprint is shared across many users, the new\u2011device flag and channel deviation raise suspicion per Pattern\u202f3 and Policy\u202fR6."
+    },
+    "needs_more_evidence": true,
+    "evidence_requests": [
+      "Ask the cardholder to confirm the online purchase",
+      "Request step\u2011up two\u2011factor authentication for the account",
+      "Obtain travel or location verification for the cardholder at the transaction time"
+    ],
+    "retrieved_policies": [
+      "Policy Rule R6 \u2014 Shared Origin & Multi-Card Rings",
+      "Pattern 4 \u2014 Out-of-Region Use (Policy R2, R3)",
+      "Pattern 3 \u2014 Card-Not-Present Fraud from New Device",
+      "Pattern 2 \u2014 Card-Not-Present Fraud (Policy R1-R4)"
+    ],
+    "similar_cases_found": 5,
+    "status": "assessed"
+  }
+]
