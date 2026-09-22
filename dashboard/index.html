@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TigerGraph Fraud Investigation Agent — Benchmark Review</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="logo-group">
+      <div class="tiger-badge">TigerGraph</div>
+      <div class="title-group">
+        <h1>Autonomous Fraud Investigation Agent</h1>
+        <p>Benchmark Review Dashboard &middot; 20 Grounded Graph Cases (HHG-001..HHG-020)</p>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="pulse-indicator">
+        <div class="pulse-dot"></div>
+        <span>Graph Memory Connected (14240)</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Summary Stats Bar -->
+  <section class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-label">Total Cases</div>
+      <div class="stat-value" id="statTotal">20</div>
+      <div class="stat-subtext">Benchmark Suite</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Definitively Resolved</div>
+      <div class="stat-value text-green" id="statResolved">3</div>
+      <div class="stat-subtext">Conclusive Graph Signals (&ge; 0.85)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Escalated / Pending Verification</div>
+      <div class="stat-value text-amber" id="statEscalated">17</div>
+      <div class="stat-subtext">Honest Uncertainty Band (0.15&ndash;0.85)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">SARs Mandated</div>
+      <div class="stat-value text-red" id="statSars">3</div>
+      <div class="stat-subtext">FinCEN / BSA-AML Regulatory Filings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Graph Write-Back</div>
+      <div class="stat-value text-teal" id="statSync">20/20</div>
+      <div class="stat-subtext">100% Verified in TigerGraph</div>
+    </div>
+  </section>
+
+  <!-- Main Container -->
+  <main class="app-container">
+    
+    <!-- Left Pane: Case List -->
+    <aside class="case-list-pane">
+      <div class="pane-header">
+        <div class="pane-title-row">
+          <span class="pane-title">Benchmark Cases</span>
+          <span class="case-count-pill" id="filteredCount">20 of 20</span>
+        </div>
+        
+        <div class="filter-bar">
+          <button class="filter-btn active" data-filter="all">All (20)</button>
+          <button class="filter-btn" data-filter="escalated">Escalated (17)</button>
+          <button class="filter-btn" data-filter="fraud">Fraud (3)</button>
+          <button class="filter-btn" data-filter="legitimate">Legitimate</button>
+        </div>
+
+        <input type="text" id="searchInput" class="search-input" placeholder="Search case ID, pattern, or status...">
+      </div>
+
+      <div class="case-list-scroll">
+        <table class="case-list-table">
+          <thead>
+            <tr>
+              <th>Case ID</th>
+              <th>Pattern</th>
+              <th>Verdict / Status</th>
+              <th>Risk</th>
+              <th>SAR</th>
+            </tr>
+          </thead>
+          <tbody id="caseListBody">
+            <!-- Dynamic rows -->
+          </tbody>
+        </table>
+      </div>
+    </aside>
+
+    <!-- Right Pane: Case Detail View -->
+    <section class="case-detail-pane" id="caseDetailContainer">
+      <div class="empty-detail">
+        <h3>Select a case to inspect investigation graph and details</h3>
+        <p>Click any case row on the left to review subgraph topology, graph evidence, policy rules, and side-by-side actions.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
