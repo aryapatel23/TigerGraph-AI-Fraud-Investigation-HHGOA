@@ -1,0 +1,110 @@
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+*.whl
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
+.installed.cfg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# mypy / type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# pytest / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+*.py,cover
+nosetests.xml
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+*.ipynb
+
+# =============================================================================
+# Node.js / Frontend
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.pnp.*
+
+# Build output
+dist/
+build/
+.next/
+.nuxt/
+out/
+.output/
+
+# =============================================================================
+# Environment & Secrets
+# =============================================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# =============================================================================
+# IDE & Editor
+# =============================================================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Logs & OS
+# =============================================================================
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# =============================================================================
+# Data (large / raw files — keep .gitkeep only)
+# =============================================================================
+data/*
+!data/.gitkeep
