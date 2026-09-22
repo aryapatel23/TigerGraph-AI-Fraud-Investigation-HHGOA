@@ -1,0 +1,406 @@
+// =============================================================================
+// HH-GOA Fraud Investigation Graph — Core GSQL Investigation Queries
+// Version: 1.0
+// Database Target: Local Docker tigergraph-hhgoa (Community Edition 4.2.2)
+// Graph: FraudInvestigation
+// =============================================================================
+
+USE GRAPH FraudInvestigation
+
+// -----------------------------------------------------------------------------
+// 1. get_transaction_context
+// Given a transaction ID, return its full details plus all connected entities:
+// Card, Customer, DeviceProfile, IdentityRecord, BillingRegion, and EmailDomains.
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_transaction_context(STRING txn_id) FOR GRAPH FraudInvestigation {
+    T = {Transaction.*};
+    target_txn = SELECT s FROM T:s WHERE s.transaction_id == txn_id;
+
+    cards = SELECT c FROM target_txn:s -(MADE_BY:e)-> Card:c;
+    custs = SELECT cust FROM cards:c -(OWNED_BY:e)-> Customer:cust;
+    devs = SELECT dp FROM target_txn:s -(FROM_DEVICE:e)-> DeviceProfile:dp;
+    identities = SELECT ir FROM target_txn:s -(HAS_IDENTITY:e)-> IdentityRecord:ir;
+    regions = SELECT br FROM target_txn:s -(BILLED_IN:e)-> BillingRegion:br;
+    domains = SELECT ed FROM target_txn:s -(USES_EMAIL_DOMAIN:e)-> EmailDomain:ed;
+
+    PRINT target_txn, cards, custs, devs, identities, regions, domains;
+}
+
+// -----------------------------------------------------------------------------
+// 2. get_customer_history
+// Return the customer's prior transactions before the anchor transaction
+// to establish spending baselines, product code distributions, and normal regions.
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_customer_history(STRING customer_id, STRING txn_id, INT lookback_days) FOR GRAPH FraudInvestigation {
+    TYPEDEF TUPLE<STRING txn_id, DATETIME ts, DOUBLE amt, STRING channel, STRING product_cd, DOUBLE risk_score> TXN_RECORD;
+
+    AvgAccum @@avg_amt;
+    MinAccum<DOUBLE> @@min_amt;
+    MaxAccum<DOUBLE> @@max_amt;
+    SumAccum<INT> @@total_txns;
+    MapAccum<STRING, INT> @@channel_dist;
+    MapAccum<STRING, INT> @@product_dist;
+    SetAccum<STRING> @@historical_regions;
+    ListAccum<TXN_RECORD> @@recent_txns;
+    MaxAccum<DATETIME> @@anchor_ts;
+
+    T_all = {Transaction.*};
+    anchor_set = SELECT t FROM T_all:t WHERE t.transaction_id == txn_id
+                 ACCUM @@anchor_ts += t.ts;
+
+    C_all = {Customer.*};
+    target_cust = SELECT c FROM C_all:c WHERE c.customer_id == customer_id;
+
+    IF target_cust.size() == 0 THEN
+        cards = SELECT c FROM anchor_set:t -(MADE_BY:e)-> Card:c;
+        target_cust = SELECT cust FROM cards:c -(OWNED_BY:e)-> Customer:cust;
+    END;
+
+    cust_cards = SELECT c FROM target_cust:cust -(OWNS:e)-> Card:c;
+    cust_txns = SELECT t FROM cust_cards:c -(MADE:e)-> Transaction:t
+                WHERE t.transaction_id != txn_id AND t.ts <= @@anchor_ts
+                ACCUM
+                    INT diff_sec = datetime_diff(@@anchor_ts, t.ts),
+                    IF lookback_days <= 0 OR diff_sec <= (lookback_days * 86400) THEN
+                        @@total_txns += 1,
+                        @@avg_amt += t.transaction_amt,
+                        @@min_amt += t.transaction_amt,
+                        @@max_amt += t.transaction_amt,
+                        @@channel_dist += (t.channel -> 1),
+                        @@product_dist += (t.product_cd -> 1),
+                        @@recent_txns += TXN_RECORD(t.transaction_id, t.ts, t.transaction_amt, t.channel, t.product_cd, t.risk_score)
+                    END;
+
+    regions = SELECT br FROM cust_txns:t -(BILLED_IN:e)-> BillingRegion:br
+              ACCUM @@historical_regions += br.region_code;
+
+    PRINT target_cust, @@total_txns, @@avg_amt, @@min_amt, @@max_amt, @@channel_dist, @@product_dist, @@historical_regions, @@recent_txns;
+}
+
+// -----------------------------------------------------------------------------
+// 3. detect_card_testing
+// Signature: Rapid sequence of 3+ small online transactions (<= $5.00)
+// within a short window (e.g. 60 min), followed by a larger attempt (> $15.00).
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_card_testing(STRING card_id, STRING customer_id, INT window_minutes) FOR GRAPH FraudInvestigation {
+    TYPEDEF TUPLE<STRING txn_id, DATETIME ts, DOUBLE amt, STRING channel> TXN_ITEM;
+
+    ListAccum<TXN_ITEM> @@card_txns;
+    OrAccum @@is_card_testing;
+    SumAccum<INT> @@small_txns_count;
+    ListAccum<TXN_ITEM> @@small_txns;
+    ListAccum<TXN_ITEM> @@larger_txns;
+
+    INT win_sec = 3600;
+    IF window_minutes > 0 THEN
+        win_sec = window_minutes * 60;
+    END;
+
+    C = {Card.*};
+    target_cards = SELECT c FROM C:c WHERE c.card_id == card_id;
+
+    IF target_cards.size() == 0 AND customer_id != "" THEN
+        Cust = {Customer.*};
+        target_cust = SELECT cu FROM Cust:cu WHERE cu.customer_id == customer_id;
+        target_cards = SELECT c FROM target_cust:cu -(OWNS:e)-> Card:c;
+    END;
+
+    online_txns = SELECT t FROM target_cards:c -(MADE:e)-> Transaction:t
+                  WHERE t.channel == "online" OR t.product_cd != "W"
+                  ACCUM @@card_txns += TXN_ITEM(t.transaction_id, t.ts, t.transaction_amt, t.channel);
+
+    FOREACH item IN @@card_txns DO
+        IF item.amt <= 5.0001 THEN
+            @@small_txns += item;
+            @@small_txns_count += 1;
+        ELSE IF item.amt >= 14.9999 THEN
+            @@larger_txns += item;
+        END;
+    END;
+
+    IF @@small_txns_count >= 3 AND @@larger_txns.size() >= 1 THEN
+        @@is_card_testing += true;
+    END;
+
+    PRINT target_cards, @@is_card_testing, @@small_txns_count, @@small_txns, @@larger_txns;
+}
+
+// -----------------------------------------------------------------------------
+// 4. detect_device_sharing
+// Find other customers and cards sharing the same DeviceProfile fingerprint.
+// Key for card-not-present rings and account-takeover clusters.
+// Explicitly excludes empty/null/placeholder device fingerprints.
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_device_sharing(STRING txn_id, STRING device_profile_id) FOR GRAPH FraudInvestigation {
+    TYPEDEF TUPLE<STRING txn_id, DATETIME ts, DOUBLE amt, STRING card_id, STRING customer_id, DOUBLE risk_score> SHARING_TXN;
+
+    SetAccum<STRING> @@connected_cards;
+    SetAccum<STRING> @@connected_customers;
+    ListAccum<SHARING_TXN> @@sample_txns;
+    OrAccum @@is_shared_device;
+    SumAccum<INT> @@total_device_txns;
+
+    DP = {DeviceProfile.*};
+    target_dp = {};
+
+    // 1. If device_profile_id is explicitly supplied, validate and ensure it is not empty/null/placeholder
+    IF device_profile_id != "" 
+       AND device_profile_id != "null" 
+       AND device_profile_id != "NULL" 
+       AND device_profile_id != "None" 
+       AND device_profile_id != "|||" THEN
+        target_dp = SELECT dp FROM DP:dp WHERE dp.device_profile_id == device_profile_id;
+    END;
+
+    // 2. If target_dp not found and txn_id is provided, find connected DeviceProfile excluding empty/null/placeholder
+    IF target_dp.size() == 0 AND txn_id != "" THEN
+        T = {Transaction.*};
+        target_txn = SELECT t FROM T:t WHERE t.transaction_id == txn_id;
+        target_dp = SELECT dp FROM target_txn:t -(FROM_DEVICE:e)-> DeviceProfile:dp
+                    WHERE dp.device_profile_id != "" 
+                      AND dp.device_profile_id != "null" 
+                      AND dp.device_profile_id != "NULL" 
+                      AND dp.device_profile_id != "None" 
+                      AND dp.device_profile_id != "|||";
+    END;
+
+    // 3. Only calculate sharing if a valid DeviceProfile was resolved
+    IF target_dp.size() > 0 THEN
+        txns = SELECT t FROM target_dp:dp -(DEVICE_USED_IN:e)-> Transaction:t
+               ACCUM @@total_device_txns += 1;
+
+        cards = SELECT c FROM txns:t -(MADE_BY:e)-> Card:c
+                ACCUM @@connected_cards += c.card_id;
+
+        custs = SELECT cust FROM cards:c -(OWNED_BY:e)-> Customer:cust
+                ACCUM @@connected_customers += cust.customer_id;
+
+        sample_set = SELECT t FROM txns:t LIMIT 30;
+        sample_acc = SELECT t FROM sample_set:t -(MADE_BY:e)-> Card:c
+                     ACCUM @@sample_txns += SHARING_TXN(t.transaction_id, t.ts, t.transaction_amt, c.card_id, "", t.risk_score);
+
+        IF @@connected_customers.size() > 1 OR @@connected_cards.size() > 1 THEN
+            @@is_shared_device += true;
+        END;
+    END;
+
+    PRINT target_dp, @@is_shared_device, @@connected_customers.size() AS sharing_customers_count,
+          @@connected_cards.size() AS sharing_cards_count, @@total_device_txns,
+          @@connected_customers, @@connected_cards, @@sample_txns;
+}
+
+// -----------------------------------------------------------------------------
+// 5. detect_out_of_region
+// Signature: Card-present (in_person) purchase in a billing region outside
+// customer history, while normal activity continues at home (simultaneous activity).
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_out_of_region(STRING txn_id) FOR GRAPH FraudInvestigation {
+    TYPEDEF TUPLE<STRING txn_id, DATETIME ts, DOUBLE amt, STRING region, STRING channel> HOME_TXN;
+
+    OrAccum @@is_out_of_region;
+    OrAccum @@has_concurrent_home_activity;
+    SetAccum<STRING> @@historical_regions;
+    ListAccum<HOME_TXN> @@concurrent_home_txns;
+
+    MaxAccum<STRING> @@txn_region;
+    MaxAccum<STRING> @@home_region_full;
+    MaxAccum<STRING> @@home_region_short;
+    MaxAccum<DATETIME> @@txn_ts;
+    MaxAccum<STRING> @@channel;
+
+    T = {Transaction.*};
+    target_txn = SELECT t FROM T:t WHERE t.transaction_id == txn_id
+                 ACCUM @@txn_ts += t.ts, @@channel += t.channel;
+
+    txn_reg_set = SELECT br FROM target_txn:t -(BILLED_IN:e)-> BillingRegion:br
+                  ACCUM @@txn_region += br.region_code;
+
+    cards = SELECT c FROM target_txn:t -(MADE_BY:e)-> Card:c
+            ACCUM
+                @@home_region_short += to_string(c.addr1),
+                @@home_region_full += to_string(c.addr1) + ".0";
+
+    custs = SELECT cust FROM cards:c -(OWNED_BY:e)-> Customer:cust;
+    all_cards = SELECT c FROM custs:cust -(OWNS:e)-> Card:c;
+
+    all_txns = SELECT t FROM all_cards:c -(MADE:e)-> Transaction:t
+               WHERE t.transaction_id != txn_id;
+
+    hist_regs = SELECT br FROM all_txns:t -(BILLED_IN:e)-> BillingRegion:br
+                ACCUM @@historical_regions += br.region_code;
+
+    IF @@txn_region != "" AND @@home_region_full != "" AND @@txn_region != @@home_region_full AND @@txn_region != @@home_region_short THEN
+        IF NOT @@historical_regions.contains(@@txn_region) THEN
+            @@is_out_of_region += true;
+        END;
+    END;
+
+    concurrent = SELECT t FROM all_txns:t -(BILLED_IN:e)-> BillingRegion:br
+                 WHERE br.region_code == @@home_region_full OR br.region_code == @@home_region_short
+                 ACCUM
+                     INT diff_sec = abs(datetime_diff(@@txn_ts, t.ts)),
+                     IF diff_sec <= (48 * 3600) THEN
+                         @@has_concurrent_home_activity += true,
+                         @@concurrent_home_txns += HOME_TXN(t.transaction_id, t.ts, t.transaction_amt, br.region_code, t.channel)
+                     END;
+
+    PRINT target_txn, @@txn_region, @@home_region_full AS home_region, @@channel, @@is_out_of_region,
+          @@has_concurrent_home_activity, @@concurrent_home_txns, @@historical_regions;
+}
+
+// -----------------------------------------------------------------------------
+// 6. detect_new_device_flag
+// Check IdentityRecord device-newness (id_15) and proxy signals (id_23).
+// Also verifies whether customer has any prior history on this DeviceProfile.
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY detect_new_device_flag(STRING txn_id) FOR GRAPH FraudInvestigation {
+    OrAccum @@has_identity;
+    OrAccum @@is_new_device;
+    OrAccum @@is_proxy_used;
+    SumAccum<INT> @@prior_uses_by_customer;
+
+    MaxAccum<STRING> @@id_15;
+    MaxAccum<STRING> @@id_23;
+    MaxAccum<STRING> @@id_28;
+    MaxAccum<STRING> @@device_profile_id;
+    MaxAccum<DATETIME> @@txn_ts;
+
+    T = {Transaction.*};
+    target_txn = SELECT t FROM T:t WHERE t.transaction_id == txn_id
+                 ACCUM @@txn_ts += t.ts;
+
+    ir_set = SELECT ir FROM target_txn:t -(HAS_IDENTITY:e)-> IdentityRecord:ir
+             ACCUM
+                 @@has_identity += true,
+                 @@id_15 += ir.id_15,
+                 @@id_23 += ir.id_23,
+                 @@id_28 += ir.id_28,
+                 IF ir.id_15 == "New" OR ir.id_28 == "New" THEN
+                     @@is_new_device += true
+                 END,
+                 IF ir.id_23 == "anonymous" OR ir.id_23 == "hidden" THEN
+                     @@is_proxy_used += true
+                 END;
+
+    dp_set = SELECT dp FROM target_txn:t -(FROM_DEVICE:e)-> DeviceProfile:dp
+             ACCUM @@device_profile_id += dp.device_profile_id;
+
+    IF @@device_profile_id != "" THEN
+        cards = SELECT c FROM target_txn:t -(MADE_BY:e)-> Card:c;
+        custs = SELECT cust FROM cards:c -(OWNED_BY:e)-> Customer:cust;
+        cust_cards = SELECT c FROM custs:cust -(OWNS:e)-> Card:c;
+        cust_txns = SELECT past_t FROM cust_cards:c -(MADE:e)-> Transaction:past_t
+                    WHERE past_t.transaction_id != txn_id AND past_t.ts < @@txn_ts;
+        matched_dp = SELECT dp FROM cust_txns:past_t -(FROM_DEVICE:e)-> DeviceProfile:dp
+                     WHERE dp.device_profile_id == @@device_profile_id
+                     ACCUM @@prior_uses_by_customer += 1;
+    END;
+
+    IF @@has_identity AND @@prior_uses_by_customer == 0 THEN
+        @@is_new_device += true;
+    END;
+
+    PRINT target_txn, @@has_identity, @@id_15, @@id_23, @@id_28, @@device_profile_id,
+          @@is_new_device, @@is_proxy_used, @@prior_uses_by_customer;
+}
+
+// -----------------------------------------------------------------------------
+// 7. get_similar_cases
+// Case memory retrieval query. Dynamically retrieves historical FraudCase
+// vertices connected via shared Card, Customer, DeviceProfile, BillingRegion,
+// or EmailDomain, ranked by similarity score.
+//
+// NOTE: SIMILAR_TO_CASE edges in the graph can be used to store pre-computed
+// similarity links as an optimization; this query computes similarity dynamically.
+// -----------------------------------------------------------------------------
+CREATE OR REPLACE QUERY get_similar_cases(STRING txn_id, STRING customer_id, INT top_k) FOR GRAPH FraudInvestigation {
+    TYPEDEF TUPLE<
+        STRING case_id,
+        STRING outcome,
+        STRING pattern_code,
+        DOUBLE exposure_usd,
+        STRING first_fraud_txn_id,
+        STRING analyst_notes,
+        INT similarity_score,
+        STRING match_reasons
+    > SIMILAR_CASE_ITEM;
+
+    SumAccum<INT> @similarity_score;
+    SetAccum<STRING> @match_reasons;
+    ListAccum<SIMILAR_CASE_ITEM> @@ranked_cases;
+
+    INT limit_k = 5;
+    IF top_k > 0 THEN
+        limit_k = top_k;
+    END;
+
+    T = {Transaction.*};
+    target_txn = SELECT t FROM T:t WHERE t.transaction_id == txn_id;
+
+    cards = SELECT c FROM target_txn:t -(MADE_BY:e)-> Card:c;
+    custs = SELECT cust FROM cards:c -(OWNED_BY:e)-> Customer:cust;
+
+    IF custs.size() == 0 AND customer_id != "" THEN
+        Cust_all = {Customer.*};
+        custs = SELECT cu FROM Cust_all:cu WHERE cu.customer_id == customer_id;
+        cards = SELECT c FROM custs:cu -(OWNS:e)-> Card:c;
+    END;
+
+    devs = SELECT dp FROM target_txn:t -(FROM_DEVICE:e)-> DeviceProfile:dp;
+    regions = SELECT br FROM target_txn:t -(BILLED_IN:e)-> BillingRegion:br;
+    domains = SELECT ed FROM target_txn:t -(USES_EMAIL_DOMAIN:e)-> EmailDomain:ed;
+
+    // 1. Shared Card (weight = 10)
+    cases_from_card = SELECT fc FROM cards:c -(CARD_IN_CASE:e)-> FraudCase:fc
+                      WHERE fc.case_source == "historical"
+                      ACCUM fc.@similarity_score += 10, fc.@match_reasons += "shared_card";
+
+    // 2. Same Customer (weight = 8)
+    cases_from_cust = SELECT fc FROM custs:cu -(CUSTOMER_IN_CASE:e)-> FraudCase:fc
+                      WHERE fc.case_source == "historical"
+                      ACCUM fc.@similarity_score += 8, fc.@match_reasons += "same_customer";
+
+    // 3. Shared Device Profile (weight = 6)
+    dev_txns = SELECT t FROM devs:dp -(DEVICE_USED_IN:e)-> Transaction:t;
+    cases_from_dev = SELECT fc FROM dev_txns:t -(TXN_IN_CASE:e)-> FraudCase:fc
+                     WHERE fc.case_source == "historical"
+                     ACCUM fc.@similarity_score += 6, fc.@match_reasons += "shared_device";
+
+    // 4. Shared Email Domain (weight = 2)
+    email_txns = SELECT t FROM domains:ed -(EMAIL_DOMAIN_USED_IN:e)-> Transaction:t;
+    cases_from_email = SELECT fc FROM email_txns:t -(TXN_IN_CASE:e)-> FraudCase:fc
+                       WHERE fc.case_source == "historical"
+                       ACCUM fc.@similarity_score += 2, fc.@match_reasons += "shared_email_domain";
+
+    // 5. Shared Billing Region (weight = 1)
+    reg_txns = SELECT t FROM regions:br -(HAS_TRANSACTION:e)-> Transaction:t;
+    cases_from_reg = SELECT fc FROM reg_txns:t -(TXN_IN_CASE:e)-> FraudCase:fc
+                     WHERE fc.case_source == "historical"
+                     ACCUM fc.@similarity_score += 1, fc.@match_reasons += "shared_billing_region";
+
+    // Union all matched candidate cases
+    FC = {FraudCase.*};
+    candidate_cases = SELECT fc FROM FC:fc
+                      WHERE fc.case_source == "historical" AND fc.@similarity_score > 0
+                      ORDER BY fc.@similarity_score DESC
+                      LIMIT limit_k;
+
+    matched = SELECT fc FROM candidate_cases:fc
+              ACCUM
+                  STRING reasons = "",
+                  FOREACH r IN fc.@match_reasons DO
+                      reasons = reasons + r + "|"
+                  END,
+                  @@ranked_cases += SIMILAR_CASE_ITEM(
+                      fc.case_id,
+                      fc.outcome,
+                      fc.pattern_code,
+                      fc.exposure_usd,
+                      fc.first_fraud_txn_id,
+                      fc.analyst_notes,
+                      fc.@similarity_score,
+                      reasons
+                  );
+
+    PRINT @@ranked_cases;
+}
