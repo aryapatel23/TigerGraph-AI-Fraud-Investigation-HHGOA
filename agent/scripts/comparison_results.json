@@ -1,0 +1,202 @@
+[
+  {
+    "case_id": "HHG-001",
+    "txn_id": "3514030",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-002",
+    "txn_id": "3478782",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-003",
+    "txn_id": "3530164",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-004",
+    "txn_id": "3583227",
+    "orig_cust": 6,
+    "new_cust": 6,
+    "orig_card": 6,
+    "new_card": 6,
+    "changed": "NO",
+    "dp_v_id": "||firefox 47.0|"
+  },
+  {
+    "case_id": "HHG-005",
+    "txn_id": "3523199",
+    "orig_cust": 112,
+    "new_cust": 112,
+    "orig_card": 112,
+    "new_card": 112,
+    "changed": "NO",
+    "dp_v_id": "iOS Device|iOS 9.3.5|mobile safari 9.0|1024x768"
+  },
+  {
+    "case_id": "HHG-006",
+    "txn_id": "3476682",
+    "orig_cust": 543,
+    "new_cust": 543,
+    "orig_card": 543,
+    "new_card": 543,
+    "changed": "NO",
+    "dp_v_id": "Trident/7.0|Windows 7|ie 11.0 for desktop|1920x1080"
+  },
+  {
+    "case_id": "HHG-007",
+    "txn_id": "3514948",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-008",
+    "txn_id": "3558054",
+    "orig_cust": 171,
+    "new_cust": 171,
+    "orig_card": 171,
+    "new_card": 171,
+    "changed": "NO",
+    "dp_v_id": "||chrome 66.0|"
+  },
+  {
+    "case_id": "HHG-009",
+    "txn_id": "3581141",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-010",
+    "txn_id": "3506725",
+    "orig_cust": 208,
+    "new_cust": 208,
+    "orig_card": 208,
+    "new_card": 208,
+    "changed": "NO",
+    "dp_v_id": "Windows|Windows 10|edge 16.0|1366x768"
+  },
+  {
+    "case_id": "HHG-011",
+    "txn_id": "3583368",
+    "orig_cust": 4,
+    "new_cust": 4,
+    "orig_card": 4,
+    "new_card": 4,
+    "changed": "NO",
+    "dp_v_id": "SM-G610F Build/NRD90M||chrome 66.0 for android|"
+  },
+  {
+    "case_id": "HHG-012",
+    "txn_id": "3553342",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-013",
+    "txn_id": "3526826",
+    "orig_cust": 253,
+    "new_cust": 253,
+    "orig_card": 253,
+    "new_card": 253,
+    "changed": "NO",
+    "dp_v_id": "Windows||chrome 66.0|"
+  },
+  {
+    "case_id": "HHG-014",
+    "txn_id": "3478561",
+    "orig_cust": 52,
+    "new_cust": 52,
+    "orig_card": 52,
+    "new_card": 52,
+    "changed": "NO",
+    "dp_v_id": "SM-G935F Build/NRD90M|Android 7.0|chrome 62.0 for android|1920x1080"
+  },
+  {
+    "case_id": "HHG-015",
+    "txn_id": "3464869",
+    "orig_cust": 8,
+    "new_cust": 8,
+    "orig_card": 8,
+    "new_card": 8,
+    "changed": "NO",
+    "dp_v_id": "Trident/7.0|Windows 8.1|ie 11.0 for desktop|1680x1050"
+  },
+  {
+    "case_id": "HHG-016",
+    "txn_id": "3534820",
+    "orig_cust": 158,
+    "new_cust": 158,
+    "orig_card": 158,
+    "new_card": 158,
+    "changed": "NO",
+    "dp_v_id": "Windows||edge 16.0|"
+  },
+  {
+    "case_id": "HHG-017",
+    "txn_id": "3450629",
+    "orig_cust": 299,
+    "new_cust": 299,
+    "orig_card": 299,
+    "new_card": 299,
+    "changed": "NO",
+    "dp_v_id": "Windows|Windows 10|chrome 65.0|1920x1080"
+  },
+  {
+    "case_id": "HHG-018",
+    "txn_id": "3491361",
+    "orig_cust": 0,
+    "new_cust": 0,
+    "orig_card": 0,
+    "new_card": 0,
+    "changed": "NO",
+    "dp_v_id": "NO_DEVICE"
+  },
+  {
+    "case_id": "HHG-019",
+    "txn_id": "3503878",
+    "orig_cust": 5,
+    "new_cust": 5,
+    "orig_card": 5,
+    "new_card": 5,
+    "changed": "NO",
+    "dp_v_id": "Windows|other|chrome 61.0|1280x720"
+  },
+  {
+    "case_id": "HHG-020",
+    "txn_id": "3509359",
+    "orig_cust": 253,
+    "new_cust": 253,
+    "orig_card": 253,
+    "new_card": 253,
+    "changed": "NO",
+    "dp_v_id": "Trident/7.0|Windows 10|ie 11.0 for desktop|1920x1080"
+  }
+]
