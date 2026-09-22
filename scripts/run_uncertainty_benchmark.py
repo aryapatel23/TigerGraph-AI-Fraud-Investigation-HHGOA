@@ -5,15 +5,11 @@ import json
 import asyncio
 from pathlib import Path
 
-# Setup paths
-project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from dotenv import load_dotenv
-load_dotenv(project_root / ".env")
-sys.stdout.reconfigure(encoding="utf-8")
 
-from agent.investigation_agent import build_investigation_graph
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 async def main():
     print("================================================================================")

@@ -3,11 +3,13 @@ import re
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
-import pyTigerGraph as tg
+
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 def main():
     # 1. Load configuration from .env
-    project_root = Path(__file__).resolve().parent.parent.parent
     env_path = project_root / ".env"
     load_dotenv(dotenv_path=env_path)
 

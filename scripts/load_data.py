@@ -3,48 +3,12 @@ import sys
 import time
 from pathlib import Path
 from dotenv import load_dotenv
-import pyTigerGraph as tg
 
-FRAUD_PATTERNS = [
-    {
-        "pattern_code": "card_testing",
-        "description": "Rapid sequence of low-value transactions followed by high-value attempt",
-        "policy_rules": "R5"
-    },
-    {
-        "pattern_code": "card_not_present_fraud",
-        "description": "High-value online transaction with mismatched billing region",
-        "policy_rules": "R1"
-    },
-    {
-        "pattern_code": "card_not_present_new_device",
-        "description": "Online purchase on previously unseen device with anonymous proxy",
-        "policy_rules": "R2,R4"
-    },
-    {
-        "pattern_code": "out_of_region_use",
-        "description": "Transaction from billing region different from cardholder home region",
-        "policy_rules": "R1"
-    },
-    {
-        "pattern_code": "account_takeover",
-        "description": "Multiple identity changes followed by rapid high-risk transactions",
-        "policy_rules": "R3"
-    },
-    {
-        "pattern_code": "undocumented",
-        "description": "Uncategorized historical fraud pattern",
-        "policy_rules": "R1,R2,R3,R4,R5"
-    },
-    {
-        "pattern_code": "none",
-        "description": "Cleared or legitimate non-fraud activity",
-        "policy_rules": ""
-    }
-]
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 def main():
-    project_root = Path(__file__).resolve().parent.parent.parent
     env_path = project_root / ".env"
     load_dotenv(dotenv_path=env_path)
 

@@ -4,8 +4,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 import pyTigerGraph as tg
 
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 def main():
-    project_root = Path(__file__).resolve().parent.parent.parent
     load_dotenv(project_root / ".env")
 
     host = os.getenv("TG_HOST", "http://localhost")

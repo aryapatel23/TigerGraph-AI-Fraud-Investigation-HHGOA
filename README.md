@@ -156,19 +156,10 @@ An autonomous fraud investigation system that transforms static tabular transact
 
 ```
 .
-├── agent/                       # Core agent implementation and utility scripts
+├── agent/                       # Core LangGraph agent engine & compliance RAG
+│   ├── __init__.py              # Package exports
 │   ├── investigation_agent.py   # 8-node LangGraph autonomous pipeline
-│   ├── policy_rag.py            # GraphRAG policy retriever for rules R1-R10
-│   ├── scripts/                 # Operational scripts for data loading, audits, and runs
-│   │   ├── tg_status.py         # Instant TigerGraph health & vertex count inspector
-│   │   ├── smoke_mcp.py         # Standalone TigerGraph MCP tool execution verifier
-│   │   ├── apply_schema.py      # Deploys gsql/schema.gsql to TigerGraph
-│   │   ├── load_data.py         # Executes GSQL loading jobs and validates row counts
-│   │   ├── install_queries.py   # Compiles and installs the 7 core GSQL queries
-│   │   ├── run_uncertainty_benchmark.py # Executes assessment over 20 benchmark cases
-│   │   ├── generate_all_answers.py      # Produces final submission JSON answers
-│   │   ├── audit_pattern_consistency.py # Regression audit for upstream-to-final pattern matching
-│   │   └── format_benchmark_table.py    # Formats benchmark verification summaries
+│   └── policy_rag.py            # GraphRAG policy retriever for rules R1-R10
 ├── cases/                       # Benchmark inputs, dry-run evaluations, and generated outputs
 │   ├── dry_run_uncertainty_assessment.json # Canonical LLM uncertainty evaluations
 │   └── HHG-001_answer.json ... HHG-020_answer.json # 20 final verified case answer packages
@@ -188,11 +179,22 @@ An autonomous fraud investigation system that transforms static tabular transact
 ├── docs/                        # Architecture and data reconciliation documentation
 │   ├── demo_video_guide.md      # Scene-by-scene presentation & recording guide for judges
 │   ├── data-dictionary.md       # Exact field specifications and row-count reconciliations
-│   └── schema-design.md         # Vertex/edge topology design and trade-off rationales
+│   ├── schema-design.md         # Vertex/edge topology design and trade-off rationales
+│   └── TigerGraph Agentic Fraud Investigation HHGOA.pdf # Official competition project brief
 ├── gsql/                        # Native TigerGraph GSQL definitions
 │   ├── schema.gsql              # Graph schema: 11 vertex types and 20 edge definitions
 │   ├── loading_jobs.gsql        # High-throughput batch ingestion pipelines
 │   └── investigation_queries.gsql # 7 production-grade GSQL queries
+├── scripts/                     # Production operations and diagnostic tooling
+│   ├── tg_status.py             # Instant TigerGraph health & vertex count inspector
+│   ├── smoke_mcp.py             # Standalone TigerGraph MCP tool execution verifier
+│   ├── apply_schema.py          # Deploys gsql/schema.gsql to TigerGraph
+│   ├── load_data.py             # Executes GSQL loading jobs and validates row counts
+│   ├── install_queries.py       # Compiles and installs the 7 core GSQL queries
+│   ├── run_uncertainty_benchmark.py # Executes assessment over 20 benchmark cases
+│   ├── generate_all_answers.py  # Produces final submission JSON answers
+│   ├── audit_pattern_consistency.py # Regression audit for upstream-to-final pattern matching
+│   └── dev/                     # Internal development & diagnostic utilities
 ├── tests/                       # Formal automated pytest test suite (54/54 passing)
 │   ├── conftest.py              # Shared TigerGraph fixtures and connection management
 │   ├── test_schema_counts.py    # Topology assertions (11 vertex types, 16 forward edges)
@@ -309,9 +311,8 @@ docker exec -it tigergraph-hhgoa gadmin start
 #### Verify Container Readiness
 Check that TigerGraph services and RESTPP are operational:
 ```bash
-python agent/scripts/tg_status.py
+python scripts/tg_status.py
 ```
-
 
 ### 3. Configure Environment Variables
 Copy [.env.example](file:///d:/HH%20X%20Tiger/.env.example) to `.env` and configure your credentials:
@@ -346,13 +347,16 @@ Execute the provisioning scripts in order:
 
 ```bash
 # Step A: Apply vertex and edge schema
-python agent/scripts/apply_schema.py
+python scripts/apply_schema.py
 
 # Step B: Run GSQL loading jobs to ingest data
-python agent/scripts/load_data.py
+python scripts/load_data.py
 
 # Step C: Install the 7 core GSQL investigation queries
-python agent/scripts/install_queries.py
+python scripts/install_queries.py
+
+# Optional: Verify TigerGraph MCP connectivity
+python scripts/smoke_mcp.py
 ```
 
 ### 6. Run Benchmark & Generate Answer Packages
@@ -360,10 +364,10 @@ Run the uncertainty benchmark and generate all 20 final answer files:
 
 ```bash
 # Run uncertainty evaluation across all 20 cases
-python agent/scripts/run_uncertainty_benchmark.py
+python scripts/run_uncertainty_benchmark.py
 
 # Generate full case packages with what_changed action diffs and graph write-backs
-python agent/scripts/generate_all_answers.py
+python scripts/generate_all_answers.py
 ```
 
 ### 7. Launch the Case Review Dashboard

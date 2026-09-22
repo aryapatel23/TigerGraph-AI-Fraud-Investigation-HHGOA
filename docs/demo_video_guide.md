@@ -26,7 +26,7 @@ Run these commands in PowerShell before recording:
 
 ### 1. Verify TigerGraph Health
 ```powershell
-.venv\Scripts\python agent/scripts/tg_status.py
+.venv\Scripts\python scripts/tg_status.py
 ```
 > Confirms all 11 vertex types and 778,640+ vertices are active.
 

@@ -4,20 +4,12 @@ import json
 import time
 from pathlib import Path
 from dotenv import load_dotenv
-import pyTigerGraph as tg
 
-QUERY_NAMES = [
-    "get_transaction_context",
-    "get_customer_history",
-    "detect_card_testing",
-    "detect_device_sharing",
-    "detect_out_of_region",
-    "detect_new_device_flag",
-    "get_similar_cases"
-]
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 def main():
-    project_root = Path(__file__).resolve().parent.parent.parent
     env_path = project_root / ".env"
     load_dotenv(dotenv_path=env_path)
 

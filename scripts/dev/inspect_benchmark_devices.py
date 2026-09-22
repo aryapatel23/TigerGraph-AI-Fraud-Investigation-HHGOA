@@ -7,6 +7,14 @@ import pyTigerGraph as tg
 
 def main():
     project_root = Path(__file__).resolve().parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+        p = p.parent
+    return p
+
+project_root = get_project_root()
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
     load_dotenv(project_root / ".env")
 
     conn = tg.TigerGraphConnection(
