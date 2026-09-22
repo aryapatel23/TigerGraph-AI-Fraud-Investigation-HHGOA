@@ -1,4 +1,4 @@
-﻿// =============================================================================
+// =============================================================================
 // HH-GOA Fraud Investigation Graph — GSQL Schema
 // Version: 1.0
 // Source data: data/HHGOA_IEEE/ (transactions.csv, identity.csv,
@@ -7,7 +7,7 @@
 // =============================================================================
 
 // -----------------------------------------------------------------------------
-// VERTEX TYPES
+// VERTEX TYPES (11 Types)
 // -----------------------------------------------------------------------------
 
 // ------------------------------------
@@ -18,12 +18,11 @@
 // ------------------------------------
 CREATE VERTEX Customer (
     PRIMARY_ID  customer_id   STRING,
-    customer_id STRING         DEFAULT "",
-    -- no other raw fields on the customer; everything else lives on Card/Transaction
-    -- This vertex exists to anchor the OWNS edge and to group cards under one identity.
+    // no other raw fields on the customer; everything else lives on Card/Transaction
+    // This vertex exists to anchor the OWNS edge and to group cards under one identity.
     created_at  DATETIME       DEFAULT "1970-01-01 00:00:00"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // Card
@@ -35,391 +34,296 @@ WITH primary_id_as_attribute="true";
 // ------------------------------------
 CREATE VERTEX Card (
     PRIMARY_ID  card_id     STRING,
-    card_id     STRING       DEFAULT "",
-    card1       INT          DEFAULT 0,   -- issuer code (anonymized)
-    card2       FLOAT        DEFAULT 0.0, -- issuer code (anonymized)
-    card3       FLOAT        DEFAULT 0.0, -- issuer code (anonymized)
-    card4       STRING       DEFAULT "",  -- network: visa / mastercard / american express / discover
-    card5       FLOAT        DEFAULT 0.0, -- issuer code (anonymized)
-    card6       STRING       DEFAULT "",  -- type: credit / debit
-    addr1       FLOAT        DEFAULT 0.0, -- billing region code (anonymized numeric)
-    addr2       FLOAT        DEFAULT 0.0, -- billing country code (87 = home country)
+    card1       INT          DEFAULT 0,   // issuer code (anonymized)
+    card2       FLOAT        DEFAULT 0.0, // issuer code (anonymized)
+    card3       FLOAT        DEFAULT 0.0, // issuer code (anonymized)
+    card4       STRING       DEFAULT "",  // network: visa / mastercard / american express / discover
+    card5       FLOAT        DEFAULT 0.0, // issuer code (anonymized)
+    card6       STRING       DEFAULT "",  // type: credit / debit
+    addr1       FLOAT        DEFAULT 0.0, // billing region code (anonymized numeric)
+    addr2       FLOAT        DEFAULT 0.0, // billing country code (87 = home country)
     created_at  DATETIME     DEFAULT "1970-01-01 00:00:00"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // Transaction
 // One row from transactions.csv. Primary key is TransactionID.
-//
 // Opaque column groups (V/C/D/M) stored as JSON STRING blobs.
-// See schema-design.md §Judgment Call: Opaque Columns for full rationale.
 // ------------------------------------
 CREATE VERTEX Transaction (
-    PRIMARY_ID      transaction_id   STRING,    -- TransactionID cast to STRING for uniformity
-    transaction_id  STRING            DEFAULT "",
-    transaction_dt  INT               DEFAULT 0, -- raw seconds offset (disguised)
+    PRIMARY_ID      transaction_id   STRING,    // TransactionID cast to STRING for uniformity
+    transaction_dt  INT               DEFAULT 0, // raw seconds offset (disguised)
     transaction_amt FLOAT             DEFAULT 0.0,
-    ts              DATETIME          DEFAULT "1970-01-01 00:00:00", -- real timestamp
-    product_cd      STRING            DEFAULT "", -- W / C / H / R / S
-    channel         STRING            DEFAULT "", -- in_person | online
+    ts              DATETIME          DEFAULT "1970-01-01 00:00:00", // real timestamp
+    product_cd      STRING            DEFAULT "", // W / C / H / R / S
+    channel         STRING            DEFAULT "", // in_person | online
     risk_score      FLOAT             DEFAULT 0.0,
 
-    -- Email domains (named, agent-readable signals)
+    // Email domains (named, agent-readable signals)
     p_emaildomain   STRING            DEFAULT "",
     r_emaildomain   STRING            DEFAULT "",
 
-    -- Distance signals (unnamed but meaningful as numeric signals)
+    // Distance signals (unnamed but meaningful as numeric signals)
     dist1           FLOAT             DEFAULT 0.0,
     dist2           FLOAT             DEFAULT 0.0,
 
-    -- Opaque column group: C1-C14 (counts — unnamed individually)
-    -- Stored as JSON: {"C1":1.0,"C2":2.0,...,"C14":0.0}
+    // Opaque column group: C1-C14 (counts — unnamed individually)
+    // Stored as JSON: {"C1":1.0,"C2":2.0,...,"C14":0.0}
     counts_json     STRING            DEFAULT "{}",
 
-    -- Opaque column group: D1-D15 (time deltas in days — unnamed individually)
-    -- Stored as JSON: {"D1":0.0,"D2":14.0,...,"D15":null}
+    // Opaque column group: D1-D15 (time deltas in days — unnamed individually)
+    // Stored as JSON: {"D1":0.0,"D2":14.0,...,"D15":null}
     deltas_json     STRING            DEFAULT "{}",
 
-    -- Opaque column group: M1-M9 (match flags — unnamed individually)
-    -- Stored as JSON: {"M1":"T","M2":"F",...,"M9":null}
+    // Opaque column group: M1-M9 (match flags — unnamed individually)
+    // Stored as JSON: {"M1":"T","M2":"F",...,"M9":null}
     match_flags_json STRING           DEFAULT "{}",
 
-    -- Opaque column group: V1-V339 (Vesta engineered features — no definitions exist)
-    -- Stored as a single JSON blob. At 339 floats per row, individual attributes
-    -- would create 339 schema columns with no semantic labels; a blob avoids
-    -- schema bloat while keeping all signal values retrievable by the agent.
-    -- See schema-design.md §Judgment Call: Opaque Columns.
+    // Opaque column group: V1-V339 (Vesta engineered features)
     vesta_features_json STRING        DEFAULT "{}"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // DeviceProfile
 // Represents a unique device fingerprint composed of:
 //   DeviceInfo + id_30 (OS) + id_31 (browser) + id_33 (screen)
-// This is the cross-card linkage vertex: two cards using the same DeviceProfile
-// are a strong fraud ring signal.
-// The primary_id is a canonical string: "<DeviceInfo>|<OS>|<browser>|<screen>"
 // ------------------------------------
 CREATE VERTEX DeviceProfile (
     PRIMARY_ID      device_profile_id  STRING,
-    device_profile_id STRING            DEFAULT "",
-    device_type     STRING             DEFAULT "", -- mobile | desktop
-    device_info     STRING             DEFAULT "", -- e.g. "SAMSUNG SM-G892A Build/NRD90M"
-    os              STRING             DEFAULT "", -- id_30: e.g. "Android 7.0"
-    browser         STRING             DEFAULT "", -- id_31: e.g. "samsung browser 6.2"
-    screen          STRING             DEFAULT "", -- id_33: e.g. "2220x1080"
-    match_status    STRING             DEFAULT ""  -- id_34: e.g. "match_status:2"
+    device_type     STRING             DEFAULT "", // mobile | desktop
+    device_info     STRING             DEFAULT "", // e.g. "SAMSUNG SM-G892A Build/NRD90M"
+    os              STRING             DEFAULT "", // id_30: e.g. "Android 7.0"
+    browser         STRING             DEFAULT "", // id_31: e.g. "samsung browser 6.2"
+    screen          STRING             DEFAULT "", // id_33: e.g. "2220x1080"
+    match_status    STRING             DEFAULT ""  // id_34: e.g. "match_status:2"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // IdentityRecord
 // One row from identity.csv joined to a Transaction.
-// Carries the per-transaction device/network signals that are NOT part of
-// the DeviceProfile fingerprint (i.e. the session-level signals).
-// Named readable fields are explicit attributes; unnamed id_01-id_11 and
-// remaining id_12-id_38 fields are stored as JSON blobs.
 // ------------------------------------
 CREATE VERTEX IdentityRecord (
-    PRIMARY_ID      identity_id    STRING,  -- same as transaction_id (1:1 join)
-    identity_id     STRING          DEFAULT "",
+    PRIMARY_ID      identity_id    STRING,  // same as transaction_id (1:1 join)
 
-    -- Named / readable categorical fields (from README)
-    id_15           STRING          DEFAULT "", -- device status: New | Found
-    id_23           STRING          DEFAULT "", -- proxy: transparent | anonymous | hidden
-    id_28           STRING          DEFAULT "", -- device status variant: New | NotFound
-    id_30           STRING          DEFAULT "", -- OS string (also in DeviceProfile)
-    id_31           STRING          DEFAULT "", -- browser string (also in DeviceProfile)
-    id_33           STRING          DEFAULT "", -- screen resolution (also in DeviceProfile)
-    id_34           STRING          DEFAULT "", -- match status string
+    // Named / readable categorical fields (from README)
+    id_15           STRING          DEFAULT "", // device status: New | Found
+    id_23           STRING          DEFAULT "", // proxy: transparent | anonymous | hidden
+    id_28           STRING          DEFAULT "", // device status variant: New | NotFound
+    id_30           STRING          DEFAULT "", // OS string (also in DeviceProfile)
+    id_31           STRING          DEFAULT "", // browser string (also in DeviceProfile)
+    id_33           STRING          DEFAULT "", // screen resolution (also in DeviceProfile)
+    id_34           STRING          DEFAULT "", // match status string
 
-    -- Encoded ratings id_01-id_11 (group meaning: device/IP/proxy/login ratings)
-    -- Unnamed individually — stored as JSON: {"id_01":0.0,"id_02":70787.0,...}
+    // Encoded ratings id_01-id_11
     ratings_json    STRING          DEFAULT "{}",
 
-    -- Remaining unnamed categorical fields id_12-id_14, id_16-id_22, id_24-id_27, id_29, id_32, id_35-id_38
-    -- Stored as JSON: {"id_12":null,"id_13":null,"id_14":-480.0,...}
+    // Remaining unnamed categorical fields
     identity_cat_json STRING        DEFAULT "{}"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // BillingRegion
 // Represents a unique value of addr1 (anonymized billing region code).
-// Exists as a vertex so that many cards and transactions can be linked
-// to the same region node — essential for out-of-region fraud detection.
 // ------------------------------------
 CREATE VERTEX BillingRegion (
     PRIMARY_ID  region_code  STRING,
-    region_code STRING        DEFAULT "",
-    addr2       FLOAT         DEFAULT 0.0  -- country code (87 = home)
+    addr2       FLOAT         DEFAULT 0.0  // country code (87 = home)
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // EmailDomain
 // Represents a unique purchaser or recipient email domain.
-// Shared email domain across many fraud transactions is a known signal.
 // ------------------------------------
 CREATE VERTEX EmailDomain (
     PRIMARY_ID  domain    STRING,
-    domain      STRING     DEFAULT "",
-    domain_type STRING     DEFAULT ""  -- "purchaser" | "recipient"
+    domain_type STRING     DEFAULT ""  // "purchaser" | "recipient"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // FraudPattern
-// A lookup/reference vertex for the five known patterns plus "undocumented"
-// and "none". Each vertex is a singleton representing one pattern category.
-// Cases are linked here so the graph can answer "how many cases match pattern X?"
-// without parsing strings.
+// A lookup/reference vertex for known patterns.
 // ------------------------------------
 CREATE VERTEX FraudPattern (
     PRIMARY_ID    pattern_code   STRING,
-    pattern_code  STRING          DEFAULT "",
-    -- Enum values: card_testing | card_not_present_fraud |
-    --   card_not_present_new_device | out_of_region_use |
-    --   account_takeover | undocumented | none
     description   STRING          DEFAULT "",
-    policy_rules  STRING          DEFAULT ""  -- e.g. "R5" or "R1,R2,R3,R4"
+    policy_rules  STRING          DEFAULT ""  // e.g. "R5" or "R1,R2,R3,R4"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
-// Case
-// Unified vertex for BOTH historical closed cases (from closed_cases_history.csv)
-// AND new cases the agent creates during investigation (from case_pack.csv or ad hoc).
-//
-// Discriminating attribute: case_source
-//   "historical"  = loaded from closed_cases_history.csv. outcome is ground truth.
-//   "benchmark"   = loaded from case_pack.csv. outcome is NEVER set. The agent fills
-//                   agent_verdict / agent_fraud_probability after investigation.
-//   "agent"       = created by the agent during investigation of an exam case.
-//                   outcome is set only when the agent closes it.
-//
-// This single vertex type satisfies both the memory/retrieval role (historical cases
-// retrieved via vector search) and the live investigation role (exam cases written
-// into the graph as the agent works).
+// FraudCase
+// Unified vertex for BOTH historical closed cases and benchmark exam cases.
 // ------------------------------------
-CREATE VERTEX Case (
+CREATE VERTEX FraudCase (
     PRIMARY_ID              case_id               STRING,
-    case_id                 STRING                 DEFAULT "",
 
-    -- Lifecycle discriminator — CRITICAL: never read outcome if case_source = "benchmark"
+    // Lifecycle discriminator — CRITICAL: never read outcome if case_source = "benchmark"
     case_source             STRING                 DEFAULT "",
-    -- Values: "historical" | "benchmark" | "agent"
+    // Values: "historical" | "benchmark" | "agent"
 
-    -- Fields shared across all case types
+    // Fields shared across all FraudCase types
     customer_id             STRING                 DEFAULT "",
     card_id                 STRING                 DEFAULT "",
     opened_at               DATETIME               DEFAULT "1970-01-01 00:00:00",
     closed_at               DATETIME               DEFAULT "1970-01-01 00:00:00",
-    status                  STRING                 DEFAULT "",
-    -- Status values: open | closed_fraud | closed_legitimate | escalated
+    case_status             STRING                 DEFAULT "",
+    // Status values: open | closed_fraud | closed_legitimate | escalated
 
-    -- Historical cases only (case_source = "historical")
-    -- For benchmark/agent cases these remain "" until the agent closes them.
+    // Historical cases only (case_source = "historical")
     outcome                 STRING                 DEFAULT "",
-    -- Values: confirmed_fraud | cleared | "" (unknown/in-progress)
+    // Values: confirmed_fraud | cleared | "" (unknown/in-progress)
 
-    -- Pattern (historical: from CSV; agent: from investigation)
+    // Pattern (historical: from CSV; agent: from investigation)
     pattern_code            STRING                 DEFAULT "",
 
-    -- Episode data
+    // Episode data
     first_fraud_txn_id      STRING                 DEFAULT "",
-    txn_ids                 STRING                 DEFAULT "", -- pipe-separated
+    txn_ids                 STRING                 DEFAULT "", // pipe-separated
     n_txns                  INT                    DEFAULT 0,
     exposure_usd            FLOAT                  DEFAULT 0.0,
-    connected_card_ids      STRING                 DEFAULT "", -- pipe-separated
+    connected_card_ids      STRING                 DEFAULT "", // pipe-separated
 
-    -- Historical case operational fields
-    actions_taken           STRING                 DEFAULT "", -- pipe-separated policy actions
-    report_filed            STRING                 DEFAULT "", -- Yes | No | ""
-    analyst_notes           STRING                 DEFAULT "", -- free-text; used for vector search
+    // Historical FraudCase operational fields
+    actions_taken           STRING                 DEFAULT "", // pipe-separated policy actions
+    report_filed            STRING                 DEFAULT "", // Yes | No | ""
+    analyst_notes           STRING                 DEFAULT "", // free-text; used for vector search
 
-    -- Benchmark case fields (case_source = "benchmark")
-    trigger_type            STRING                 DEFAULT "", -- risk_score | customer_report | analyst_request
+    // Benchmark FraudCase fields (case_source = "benchmark")
+    trigger_type            STRING                 DEFAULT "", // risk_score | customer_report | analyst_request
     trigger_text            STRING                 DEFAULT "",
     flagged_txn_id          STRING                 DEFAULT "",
-    trigger_risk_score      FLOAT                  DEFAULT 0.0, -- may be 0 if not a risk_score trigger
+    trigger_risk_score      FLOAT                  DEFAULT 0.0, // may be 0 if not a risk_score trigger
 
-    -- Agent investigation output (case_source = "benchmark" or "agent")
-    agent_verdict           STRING                 DEFAULT "", -- fraud | legitimate | uncertain
+    // Agent investigation output (case_source = "benchmark" or "agent")
+    agent_verdict           STRING                 DEFAULT "", // fraud | legitimate | uncertain
     agent_fraud_probability FLOAT                  DEFAULT 0.0,
     agent_pattern_description STRING               DEFAULT "",
     agent_summary           STRING                 DEFAULT "",
     agent_stop_reason       STRING                 DEFAULT "",
     agent_tool_calls        INT                    DEFAULT 0,
-    written_to_graph        BOOL                   DEFAULT FALSE
+    written_to_graph        BOOL                   DEFAULT "false"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // Evidence
-// One claim made during an investigation, tied to a Case.
-// Mirrors the evidence list items in the answer format exactly.
-// Stored as a vertex (not just a JSON blob on Case) so the agent can
-// query which evidence supports which case and which entity IDs appear
-// across multiple cases.
+// One claim made during an investigation, tied to a FraudCase.
 // ------------------------------------
 CREATE VERTEX Evidence (
-    PRIMARY_ID  evidence_id   STRING,
-    evidence_id STRING         DEFAULT "",
-    case_id     STRING         DEFAULT "", -- back-reference for convenience
-    claim       STRING         DEFAULT "", -- the evidence statement
-    source      STRING         DEFAULT "", -- graph | document | customer | external
-    ref         STRING         DEFAULT "", -- query name, document section, or request id
-    entity_ids  STRING         DEFAULT ""  -- pipe-separated list of IDs the claim rests on
+    PRIMARY_ID      evidence_id   STRING,
+    case_id         STRING         DEFAULT "", // back-reference for convenience
+    claim           STRING         DEFAULT "", // the evidence statement
+    evidence_source STRING         DEFAULT "", // graph | document | customer | external
+    ref             STRING         DEFAULT "", // query name, document section, or request id
+    entity_ids      STRING         DEFAULT ""  // pipe-separated list of IDs the claim rests on
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
 // ------------------------------------
 // Decision
-// One action recommendation in a next_best_actions entry, tied to a Case.
-// Separate from Case so the agent can retrieve all actions taken across cases
-// for a given card or customer.
+// One action recommendation in a next_best_actions entry, tied to a FraudCase.
 // ------------------------------------
 CREATE VERTEX Decision (
-    PRIMARY_ID    decision_id   STRING,
-    decision_id   STRING         DEFAULT "",
-    case_id       STRING         DEFAULT "", -- back-reference
-    action        STRING         DEFAULT "", -- policy action name, e.g. BLOCK_CARD
-    route         STRING         DEFAULT "", -- auto | L1 | L2
-    reason        STRING         DEFAULT "", -- policy rule citation
-    phase         STRING         DEFAULT "", -- initial | final
-    executed      BOOL           DEFAULT FALSE
+    PRIMARY_ID      decision_id    STRING,
+    case_id         STRING         DEFAULT "", // back-reference
+    policy_action   STRING         DEFAULT "", // policy action name, e.g. BLOCK_CARD
+    approval_route  STRING         DEFAULT "", // auto | L1 | L2
+    policy_reason   STRING         DEFAULT "", // policy rule citation
+    decision_phase  STRING         DEFAULT "", // initial | final
+    executed        BOOL           DEFAULT "false"
 )
-WITH primary_id_as_attribute="true";
+WITH primary_id_as_attribute="true"
 
-// =============================================================================
-// EDGE TYPES
-// =============================================================================
+// -----------------------------------------------------------------------------
+// EDGE TYPES (20 Directed / Directed Reverse Pairs)
+// -----------------------------------------------------------------------------
 
-// ------------------------------------
-// Customer → Card ownership
-// ------------------------------------
+// Customer -> Card
 CREATE DIRECTED EDGE OWNS (FROM Customer, TO Card)
-WITH REVERSE_EDGE="OWNED_BY";
+WITH REVERSE_EDGE="OWNED_BY"
 
-// ------------------------------------
-// Card → Transaction: the card was used to make the transaction
-// ------------------------------------
+// Card -> Transaction
 CREATE DIRECTED EDGE MADE (FROM Card, TO Transaction)
-WITH REVERSE_EDGE="MADE_BY";
+WITH REVERSE_EDGE="MADE_BY"
 
-// ------------------------------------
-// Transaction → DeviceProfile: the device used for this online transaction
-// Only exists for online transactions (channel = online, ProductCD != W)
-// ------------------------------------
+// Transaction -> DeviceProfile
 CREATE DIRECTED EDGE FROM_DEVICE (FROM Transaction, TO DeviceProfile)
-WITH REVERSE_EDGE="DEVICE_USED_IN";
+WITH REVERSE_EDGE="DEVICE_USED_IN"
 
-// ------------------------------------
-// Transaction → IdentityRecord: the full identity row for this transaction
-// 1:1 relationship; IdentityRecord.identity_id == Transaction.transaction_id
-// ------------------------------------
+// Transaction -> IdentityRecord
 CREATE DIRECTED EDGE HAS_IDENTITY (FROM Transaction, TO IdentityRecord)
-WITH REVERSE_EDGE="IDENTITY_FOR";
+WITH REVERSE_EDGE="IDENTITY_FOR"
 
-// ------------------------------------
-// Transaction → BillingRegion: where this transaction was billed
-// ------------------------------------
+// Transaction -> BillingRegion
 CREATE DIRECTED EDGE BILLED_IN (FROM Transaction, TO BillingRegion)
-WITH REVERSE_EDGE="HAS_TRANSACTION";
+WITH REVERSE_EDGE="HAS_TRANSACTION"
 
-// ------------------------------------
-// Transaction → EmailDomain: purchaser and recipient email domains
-// Two edges per transaction (one for P_emaildomain, one for R_emaildomain),
-// distinguished by the domain_role attribute.
-// ------------------------------------
+// Transaction -> EmailDomain
 CREATE DIRECTED EDGE USES_EMAIL_DOMAIN (
     FROM Transaction, TO EmailDomain,
-    domain_role STRING DEFAULT ""  -- "purchaser" | "recipient"
+    domain_role STRING DEFAULT ""  // "purchaser" | "recipient"
 )
-WITH REVERSE_EDGE="EMAIL_DOMAIN_USED_IN";
+WITH REVERSE_EDGE="EMAIL_DOMAIN_USED_IN"
 
-// ------------------------------------
-// Transaction → Transaction: temporal sequence on the same card
-// Ordered by ts within a card; enables card-testing pattern detection
-// (small auths followed by large purchase).
-// ------------------------------------
+// Transaction -> Transaction (Temporal Chain)
 CREATE DIRECTED EDGE NEXT_TXN (
     FROM Transaction, TO Transaction,
-    gap_seconds INT DEFAULT 0  -- ts difference in seconds
-);
-
-// ------------------------------------
-// Case → Transaction: the flagged or affected transaction(s)
-// Role distinguishes the trigger transaction from other affected ones.
-// ------------------------------------
-CREATE DIRECTED EDGE INVOLVES_TXN (
-    FROM Case, TO Transaction,
-    role STRING DEFAULT ""  -- "flagged" | "affected" | "first_fraud"
+    gap_seconds INT DEFAULT 0
 )
-WITH REVERSE_EDGE="TXN_IN_CASE";
 
-// ------------------------------------
-// Case → Card: the primary card under investigation
-// ------------------------------------
-CREATE DIRECTED EDGE ON_CARD (FROM Case, TO Card)
-WITH REVERSE_EDGE="CARD_IN_CASE";
+// FraudCase -> Transaction
+CREATE DIRECTED EDGE INVOLVES_TXN (
+    FROM FraudCase, TO Transaction,
+    role STRING DEFAULT ""  // "flagged" | "affected" | "first_fraud"
+)
+WITH REVERSE_EDGE="TXN_IN_CASE"
 
-// ------------------------------------
-// Case → Card: connected/linked cards in the same fraud ring
-// Separate from ON_CARD so queries can find ring members without
-// confusing them with the primary card.
-// ------------------------------------
-CREATE DIRECTED EDGE CONNECTED_TO_CARD (FROM Case, TO Card)
-WITH REVERSE_EDGE="CARD_CONNECTED_IN_CASE";
+// FraudCase -> Card
+CREATE DIRECTED EDGE ON_CARD (FROM FraudCase, TO Card)
+WITH REVERSE_EDGE="CARD_IN_CASE"
 
-// ------------------------------------
-// Case → Customer: the customer under investigation
-// ------------------------------------
-CREATE DIRECTED EDGE INVOLVES_CUSTOMER (FROM Case, TO Customer)
-WITH REVERSE_EDGE="CUSTOMER_IN_CASE";
+// FraudCase -> Card (Connected ring members)
+CREATE DIRECTED EDGE CONNECTED_TO_CARD (FROM FraudCase, TO Card)
+WITH REVERSE_EDGE="CARD_CONNECTED_IN_CASE"
 
-// ------------------------------------
-// Case → DeviceProfile: device profiles cited as evidence in this case
-// ------------------------------------
-CREATE DIRECTED EDGE LINKED_DEVICE (FROM Case, TO DeviceProfile)
-WITH REVERSE_EDGE="DEVICE_IN_CASE";
+// FraudCase -> Customer
+CREATE DIRECTED EDGE INVOLVES_CUSTOMER (FROM FraudCase, TO Customer)
+WITH REVERSE_EDGE="CUSTOMER_IN_CASE"
 
-// ------------------------------------
-// Case → FraudPattern: which pattern this case matched
-// ------------------------------------
-CREATE DIRECTED EDGE MATCHES_PATTERN (FROM Case, TO FraudPattern)
-WITH REVERSE_EDGE="PATTERN_MATCHED_IN";
+// FraudCase -> DeviceProfile
+CREATE DIRECTED EDGE LINKED_DEVICE (FROM FraudCase, TO DeviceProfile)
+WITH REVERSE_EDGE="DEVICE_IN_CASE"
 
-// ------------------------------------
-// Case → Evidence: evidence items belonging to this case
-// ------------------------------------
-CREATE DIRECTED EDGE HAS_EVIDENCE (FROM Case, TO Evidence)
-WITH REVERSE_EDGE="EVIDENCE_FOR_CASE";
+// FraudCase -> FraudPattern
+CREATE DIRECTED EDGE MATCHES_PATTERN (FROM FraudCase, TO FraudPattern)
+WITH REVERSE_EDGE="PATTERN_MATCHED_IN"
 
-// ------------------------------------
-// Case → Decision: recommended actions for this case
-// ------------------------------------
-CREATE DIRECTED EDGE HAS_DECISION (FROM Case, TO Decision)
-WITH REVERSE_EDGE="DECISION_FOR_CASE";
+// FraudCase -> Evidence
+CREATE DIRECTED EDGE HAS_EVIDENCE (FROM FraudCase, TO Evidence)
+WITH REVERSE_EDGE="EVIDENCE_FOR_CASE"
 
-// ------------------------------------
-// Case → Case: this case retrieved and cited a prior case as memory
-// Used by the agent when similar_prior_cases is populated.
-// ------------------------------------
+// FraudCase -> Decision
+CREATE DIRECTED EDGE HAS_DECISION (FROM FraudCase, TO Decision)
+WITH REVERSE_EDGE="DECISION_FOR_CASE"
+
+// FraudCase -> FraudCase (Case-to-case memory/similarity)
 CREATE DIRECTED EDGE SIMILAR_TO_CASE (
-    FROM Case, TO Case,
-    similarity_reason STRING DEFAULT ""  -- brief note on why retrieved
-);
+    FROM FraudCase, TO FraudCase,
+    similarity_reason STRING DEFAULT ""
+)
 
-// =============================================================================
+// -----------------------------------------------------------------------------
 // GRAPH DEFINITION
-// =============================================================================
+// -----------------------------------------------------------------------------
 
 CREATE GRAPH FraudInvestigation (
-    -- Vertices
+    // Vertices (11)
     Customer,
     Card,
     Transaction,
@@ -428,39 +332,25 @@ CREATE GRAPH FraudInvestigation (
     BillingRegion,
     EmailDomain,
     FraudPattern,
-    Case,
+    FraudCase,
     Evidence,
     Decision,
 
-    -- Edges
+    // Edges (20 Directed types)
     OWNS,
-    OWNED_BY,
     MADE,
-    MADE_BY,
     FROM_DEVICE,
-    DEVICE_USED_IN,
     HAS_IDENTITY,
-    IDENTITY_FOR,
     BILLED_IN,
-    HAS_TRANSACTION,
     USES_EMAIL_DOMAIN,
-    EMAIL_DOMAIN_USED_IN,
     NEXT_TXN,
     INVOLVES_TXN,
-    TXN_IN_CASE,
     ON_CARD,
-    CARD_IN_CASE,
     CONNECTED_TO_CARD,
-    CARD_CONNECTED_IN_CASE,
     INVOLVES_CUSTOMER,
-    CUSTOMER_IN_CASE,
     LINKED_DEVICE,
-    DEVICE_IN_CASE,
     MATCHES_PATTERN,
-    PATTERN_MATCHED_IN,
     HAS_EVIDENCE,
-    EVIDENCE_FOR_CASE,
     HAS_DECISION,
-    DECISION_FOR_CASE,
     SIMILAR_TO_CASE
 )

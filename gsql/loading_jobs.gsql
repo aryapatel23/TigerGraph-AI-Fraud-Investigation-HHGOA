@@ -1,0 +1,186 @@
+// =============================================================================
+// HH-GOA Fraud Investigation Graph — GSQL Data Loading Jobs
+// Version: 1.0
+// Database Target: Local Docker tigergraph-hhgoa (Community Edition 4.2.2)
+// Data Path inside container: /home/tigergraph/tigergraph/data/hhgoa_raw/
+// =============================================================================
+
+USE GRAPH FraudInvestigation
+
+// -----------------------------------------------------------------------------
+// 1. Transactions & Base Entities Loading Job
+// Derives Customer, Card, BillingRegion, EmailDomain, and Transaction vertices
+// and their linking edges: OWNS, MADE, BILLED_IN, USES_EMAIL_DOMAIN.
+// -----------------------------------------------------------------------------
+CREATE LOADING JOB load_transactions_job FOR GRAPH FraudInvestigation {
+    DEFINE FILENAME f_txns = "/home/tigergraph/tigergraph/data/hhgoa_raw/transactions.csv";
+
+    // 1.1 Base Entity: Customer
+    LOAD f_txns TO VERTEX Customer VALUES ($"customer_id", $"ts")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 1.2 Base Entity: Card (Key: customer_id-K1)
+    LOAD f_txns TO VERTEX Card VALUES (
+        gsql_concat($"customer_id", "-K1"),
+        $"card1", $"card2", $"card3", $"card4", $"card5", $"card6",
+        $"addr1", $"addr2", $"ts"
+    ) USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 1.3 Base Entity: BillingRegion (where addr1 is present)
+    LOAD f_txns TO VERTEX BillingRegion VALUES ($"addr1", $"addr2")
+        WHERE $10 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 1.4 Base Entity: EmailDomain (purchaser & recipient)
+    LOAD f_txns TO VERTEX EmailDomain VALUES ($"P_emaildomain", "purchaser")
+        WHERE $14 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+    LOAD f_txns TO VERTEX EmailDomain VALUES ($"R_emaildomain", "recipient")
+        WHERE $15 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 1.5 Primary Fact Entity: Transaction
+    LOAD f_txns TO VERTEX Transaction VALUES (
+        $"TransactionID",
+        $"TransactionDT",
+        $"TransactionAmt",
+        $"ts",
+        $"ProductCD",
+        $"channel",
+        $"risk_score",
+        $"P_emaildomain",
+        $"R_emaildomain",
+        $"dist1",
+        $"dist2",
+        _, _, _, _ // default JSON placeholders
+    ) USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 1.6 Edges
+    LOAD f_txns TO EDGE OWNS VALUES ($"customer_id", gsql_concat($"customer_id", "-K1"))
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_txns TO EDGE MADE VALUES (gsql_concat($"customer_id", "-K1"), $"TransactionID")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_txns TO EDGE BILLED_IN VALUES ($"TransactionID", $"addr1")
+        WHERE $10 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_txns TO EDGE USES_EMAIL_DOMAIN VALUES ($"TransactionID", $"P_emaildomain", "purchaser")
+        WHERE $14 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_txns TO EDGE USES_EMAIL_DOMAIN VALUES ($"TransactionID", $"R_emaildomain", "recipient")
+        WHERE $15 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+}
+
+// -----------------------------------------------------------------------------
+// 2. Identity & Device Profile Loading Job
+// Loads IdentityRecord vertices and unique DeviceProfile fingerprints,
+// plus HAS_IDENTITY and FROM_DEVICE edges.
+// -----------------------------------------------------------------------------
+CREATE LOADING JOB load_identity_job FOR GRAPH FraudInvestigation {
+    DEFINE FILENAME f_identity = "/home/tigergraph/tigergraph/data/hhgoa_raw/identity.csv";
+
+    // 2.1 DeviceProfile Fingerprint Vertex
+    LOAD f_identity TO VERTEX DeviceProfile VALUES (
+        gsql_concat($"DeviceInfo", "|", $"id_30", "|", $"id_31", "|", $"id_33"),
+        $"DeviceType", $"DeviceInfo", $"id_30", $"id_31", $"id_33", $"id_34"
+    ) WHERE $"DeviceInfo" != "" OR $"id_30" != "" OR $"id_31" != "" OR $"id_33" != ""
+      USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 2.2 IdentityRecord Vertex
+    LOAD f_identity TO VERTEX IdentityRecord VALUES (
+        $"TransactionID",
+        $"id_15", $"id_23", $"id_28", $"id_30", $"id_31", $"id_33", $"id_34",
+        _, _ // default JSON placeholders
+    ) USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 2.3 Edges
+    LOAD f_identity TO EDGE HAS_IDENTITY VALUES ($"TransactionID", $"TransactionID")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_identity TO EDGE FROM_DEVICE VALUES (
+        $"TransactionID",
+        gsql_concat($"DeviceInfo", "|", $"id_30", "|", $"id_31", "|", $"id_33")
+    ) WHERE $"DeviceInfo" != "" OR $"id_30" != "" OR $"id_31" != "" OR $"id_33" != ""
+      USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+}
+
+// -----------------------------------------------------------------------------
+// 3. Historical and Benchmark Cases Loading Job
+// Loads closed_cases_history.csv (with outcomes) and case_pack.csv (without outcomes).
+// -----------------------------------------------------------------------------
+CREATE LOADING JOB load_cases_job FOR GRAPH FraudInvestigation {
+    DEFINE FILENAME f_cases = "/home/tigergraph/tigergraph/data/hhgoa_raw/closed_cases_history.csv";
+    DEFINE FILENAME f_pack = "/home/tigergraph/tigergraph/data/hhgoa_raw/case_pack.csv";
+
+    // 3.1 Historical Closed Cases (Ground Truth outcomes populated)
+    LOAD f_cases TO VERTEX FraudCase VALUES (
+        $"case_id",
+        "historical",
+        $"customer_id",
+        $"card_id",
+        $"opened_at",
+        $"closed_at",
+        "closed",
+        $"outcome",
+        $"pattern",
+        $"first_fraud_txn_id",
+        $"txn_ids",
+        $"n_txns",
+        $"exposure_usd",
+        $"connected_card_ids",
+        $"actions_taken",
+        $"report_filed",
+        $"analyst_notes",
+        _, _, _, _,
+        _, _, _, _, _, _, _
+    ) USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_cases TO EDGE INVOLVES_CUSTOMER VALUES ($"case_id", $"customer_id")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+    LOAD f_cases TO EDGE ON_CARD VALUES ($"case_id", $"card_id")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+    LOAD f_cases TO EDGE INVOLVES_TXN VALUES ($"case_id", $"first_fraud_txn_id", "first_fraud")
+        WHERE $7 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+    LOAD f_cases TO EDGE MATCHES_PATTERN VALUES ($"case_id", $"pattern")
+        WHERE $6 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    // 3.2 Benchmark Exam Cases (Outcome/verdict NOT populated)
+    LOAD f_pack TO VERTEX FraudCase VALUES (
+        $"case_id",
+        "benchmark",
+        $"customer_id",
+        $"card_id",
+        $"opened_at",
+        _, // closed_at left empty
+        "open", // case_status
+        "", // outcome strictly empty
+        "", // pattern_code strictly empty
+        _, // first_fraud_txn_id
+        _, // txn_ids
+        _, // n_txns
+        _, // exposure_usd
+        _, // connected_card_ids
+        _, // actions_taken
+        _, // report_filed
+        _, // analyst_notes
+        $"trigger_type",
+        $"trigger_text",
+        $"flagged_txn_id",
+        $"risk_score",
+        _, _, _, _, _, _, _
+    ) USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+
+    LOAD f_pack TO EDGE INVOLVES_CUSTOMER VALUES ($"case_id", $"customer_id")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+    LOAD f_pack TO EDGE ON_CARD VALUES ($"case_id", $"card_id")
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+    LOAD f_pack TO EDGE INVOLVES_TXN VALUES ($"case_id", $"flagged_txn_id", "flagged")
+        WHERE $4 != ""
+        USING HEADER="true", SEPARATOR=",", QUOTE="double", EOL="\n";
+}

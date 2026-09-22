@@ -1,4 +1,4 @@
-﻿# Schema Design — FraudInvestigation Graph
+# Schema Design — FraudInvestigation Graph
 
 > Companion to `gsql/schema.gsql`
 > Maps every vertex/edge back to the data dictionary fields in `docs/data-dictionary.md`.
@@ -16,7 +16,7 @@ reverses). The design follows three principles:
 2. **Opaque signals are blobs.** Fields with no published individual definitions (V1-V339,
    C1-C14, D1-D15, unnamed id_xx) are stored as JSON strings. The agent can retrieve and
    pass these blobs to the LLM; the LLM treats them as opaque signals and says so in evidence.
-3. **The graph is the case memory.** The schema is shaped so that the agent can write its
+3. **The graph is the FraudCase memory.** The schema is shaped so that the agent can write its
    findings back into the same graph it reads from, enabling later investigations to retrieve
    prior cases.
 
@@ -151,14 +151,14 @@ than a full table scan.
 | `description` | README §5.2 | Human-readable signature. |
 | `policy_rules` | README §Policy | Applicable rule codes, e.g. "R5" or "R1,R2,R3,R4". |
 
-**Design choice:** Making FraudPattern a vertex (rather than just a string attribute on Case)
+**Design choice:** Making FraudPattern a vertex (rather than just a string attribute on FraudCase)
 allows the graph to answer "which cases share this pattern?" with a single edge traversal,
 and allows the agent to retrieve the pattern description via graph query rather than
 hard-coding it in the prompt.
 
 ---
 
-### `Case` ← Key design vertex
+### `FraudCase` ← Key design vertex
 
 | Attribute | Source | Notes |
 |---|---|---|
@@ -185,7 +185,7 @@ The `case_source` attribute is the guard:
 - `"agent"`: created by the agent during live investigation. `outcome` set only when agent closes.
 
 Every GSQL loading job and agent query should check `case_source` before reading `outcome`.
-This prevents the agent from accidentally treating a benchmark case's empty `outcome` as
+This prevents the agent from accidentally treating a benchmark FraudCase's empty `outcome` as
 "cleared" and prevents it from overwriting historical outcomes.
 
 ---
@@ -201,7 +201,7 @@ Maps directly to the `evidence` list items in the answer format:
 | `ref` | `ref` (query name, document section, request id) |
 | `entity_ids` | `entity_ids` (pipe-separated) |
 
-**Design choice:** Evidence is a vertex (not a JSON blob on Case) so the agent can query
+**Design choice:** Evidence is a vertex (not a JSON blob on FraudCase) so the agent can query
 *"which evidence items mention entity X across all cases?"* — useful for finding prior cases
 that reference the same device, card, or merchant.
 
@@ -232,15 +232,15 @@ Maps to the `next_best_actions` items in the answer format:
 | `BILLED_IN` / `HAS_TRANSACTION` | Transaction → BillingRegion | Where the transaction was billed (from `addr1`). |
 | `USES_EMAIL_DOMAIN` / `EMAIL_DOMAIN_USED_IN` | Transaction → EmailDomain | Purchaser or recipient domain (role on edge). |
 | `NEXT_TXN` | Transaction → Transaction | Temporal ordering within a card; needed for card-testing sequence detection. |
-| `INVOLVES_TXN` / `TXN_IN_CASE` | Case → Transaction | Which transactions are part of this case (role: flagged / affected / first_fraud). |
-| `ON_CARD` / `CARD_IN_CASE` | Case → Card | The primary card under investigation. |
-| `CONNECTED_TO_CARD` / `CARD_CONNECTED_IN_CASE` | Case → Card | Connected cards in the same ring (from `connected_card_ids`). |
-| `INVOLVES_CUSTOMER` / `CUSTOMER_IN_CASE` | Case → Customer | The customer under investigation. |
-| `LINKED_DEVICE` / `DEVICE_IN_CASE` | Case → DeviceProfile | Device profiles cited as evidence in this case. |
-| `MATCHES_PATTERN` / `PATTERN_MATCHED_IN` | Case → FraudPattern | Which pattern this case identified. |
-| `HAS_EVIDENCE` / `EVIDENCE_FOR_CASE` | Case → Evidence | Evidence items belonging to this case. |
-| `HAS_DECISION` / `DECISION_FOR_CASE` | Case → Decision | Recommended actions for this case. |
-| `SIMILAR_TO_CASE` | Case → Case | This case retrieved a prior case as memory (similar_prior_cases). |
+| `INVOLVES_TXN` / `TXN_IN_CASE` | FraudCase → Transaction | Which transactions are part of this FraudCase (role: flagged / affected / first_fraud). |
+| `ON_CARD` / `CARD_IN_CASE` | FraudCase → Card | The primary card under investigation. |
+| `CONNECTED_TO_CARD` / `CARD_CONNECTED_IN_CASE` | FraudCase → Card | Connected cards in the same ring (from `connected_card_ids`). |
+| `INVOLVES_CUSTOMER` / `CUSTOMER_IN_CASE` | FraudCase → Customer | The customer under investigation. |
+| `LINKED_DEVICE` / `DEVICE_IN_CASE` | FraudCase → DeviceProfile | Device profiles cited as evidence in this FraudCase. |
+| `MATCHES_PATTERN` / `PATTERN_MATCHED_IN` | FraudCase → FraudPattern | Which pattern this FraudCase identified. |
+| `HAS_EVIDENCE` / `EVIDENCE_FOR_CASE` | FraudCase → Evidence | Evidence items belonging to this FraudCase. |
+| `HAS_DECISION` / `DECISION_FOR_CASE` | FraudCase → Decision | Recommended actions for this FraudCase. |
+| `SIMILAR_TO_CASE` | FraudCase → FraudCase | This FraudCase retrieved a prior FraudCase as memory (similar_prior_cases). |
 
 ---
 
@@ -310,7 +310,7 @@ querying an IdentityRecord needs the OS/browser without a second hop to DevicePr
 
 ---
 
-## Judgment Call: Single `Case` vertex type for historical and benchmark
+## Judgment Call: Single `FraudCase` vertex type for historical and benchmark
 
 Requirement 3 asks for discrimination between historical (closed) and benchmark (exam) cases.
 Two options:
@@ -336,19 +336,104 @@ benchmark rows at load time as an additional safeguard.
 
 | Answer format field | Graph write |
 |---|---|
-| `case.status` | `Case.status` |
-| `case.verdict` | `Case.agent_verdict` |
-| `case.fraud_probability` | `Case.agent_fraud_probability` |
-| `case.pattern` | `Case.pattern_code` + `MATCHES_PATTERN` edge |
-| `case.pattern_description` | `Case.agent_pattern_description` |
-| `case.affected_txn_ids` | `INVOLVES_TXN` edges with role="affected" |
-| `case.first_suspicious_txn_id` | `INVOLVES_TXN` edge with role="first_fraud" |
-| `case.connected_card_ids` | `CONNECTED_TO_CARD` edges |
-| `case.connected_device_profiles` | `LINKED_DEVICE` edges |
-| `case.exposure_usd` | `Case.exposure_usd` |
-| `case.evidence[i]` | `Evidence` vertex + `HAS_EVIDENCE` edge |
-| `case.similar_prior_cases` | `SIMILAR_TO_CASE` edges |
-| `case.summary` | `Case.agent_summary` |
-| `case.written_to_graph` | `Case.written_to_graph` (set to TRUE after write) |
+| `FraudCase.status` | `FraudCase.status` |
+| `FraudCase.verdict` | `FraudCase.agent_verdict` |
+| `FraudCase.fraud_probability` | `FraudCase.agent_fraud_probability` |
+| `FraudCase.pattern` | `FraudCase.pattern_code` + `MATCHES_PATTERN` edge |
+| `FraudCase.pattern_description` | `FraudCase.agent_pattern_description` |
+| `FraudCase.affected_txn_ids` | `INVOLVES_TXN` edges with role="affected" |
+| `FraudCase.first_suspicious_txn_id` | `INVOLVES_TXN` edge with role="first_fraud" |
+| `FraudCase.connected_card_ids` | `CONNECTED_TO_CARD` edges |
+| `FraudCase.connected_device_profiles` | `LINKED_DEVICE` edges |
+| `FraudCase.exposure_usd` | `FraudCase.exposure_usd` |
+| `FraudCase.evidence[i]` | `Evidence` vertex + `HAS_EVIDENCE` edge |
+| `FraudCase.similar_prior_cases` | `SIMILAR_TO_CASE` edges |
+| `FraudCase.summary` | `FraudCase.agent_summary` |
+| `FraudCase.written_to_graph` | `FraudCase.written_to_graph` (set to TRUE after write) |
 | `next_best_actions.initial[i]` | `Decision` vertex (phase="initial") + `HAS_DECISION` |
 | `next_best_actions.final[i]` | `Decision` vertex (phase="final") + `HAS_DECISION` |
+
+---
+
+## Deployment
+
+The `FraudInvestigation` schema is deployed, verified, and fully populated with data on a local TigerGraph Community Edition instance via Docker.
+
+- **Deployment Date:** September 22, 2026
+- **Data Load Date:** September 22, 2026
+- **Database Target:** Local Docker Community Edition (`tigergraph/community:4.2.2`)
+- **Container Name:** `tigergraph-hhgoa`
+- **Persistent Volume:** `tg-hhgoa-data` (mounted to `/home/tigergraph/tigergraph/data`)
+- **Raw Data Path in Container:** `/home/tigergraph/tigergraph/data/hhgoa_raw/`
+- **Ports Mapped:**
+  - `14240`: GraphStudio, REST++ API, GSQL interface
+  - `9000`: RESTPP
+  - `14022`: Container SSH (port 22)
+- **Schema Status:** Successfully applied with all 11 vertex types and 20 edge types (16 forward directed + reverse pairs).
+- **Data Ingestion Status:** Completed cleanly with 0 errors across all 4 CSV datasets via `agent/scripts/load_data.py` and `gsql/loading_jobs.gsql`.
+
+### Final Graph Counts Verification
+
+#### Vertex Counts
+
+| Vertex Type | Loaded Count | Expected / Source | Reconciliation Notes |
+|---|---|---|---|
+| `Transaction` | 590,742 | 590,742 (`transactions.csv`) | Exact 1:1 match (test artifacts cleaned up) |
+| `IdentityRecord` | 144,432 | 144,432 (`identity.csv`) | Exact 1:1 match |
+| `FraudCase` | 5,585 | 5,585 (5,565 + 20) | Exact match: 5,565 historical cases (`closed_cases_history.csv`) + 20 benchmark cases (`case_pack.csv`) |
+| `Customer` | 13,564 | Derived (`customer_id`) | Deduplicated distinct customers |
+| `Card` | 13,944 | Derived (`customer_id-K1`) | Deduplicated distinct cards |
+| `DeviceProfile` | 9,705 | Derived fingerprint | Deduplicated distinct `DeviceInfo\|id_30\|id_31\|id_33` fingerprints |
+| `BillingRegion` | 332 | Derived (`addr1`) | Distinct billing region codes |
+| `EmailDomain` | 60 | Derived (`P_emaildomain`, `R_emaildomain`) | Distinct email domains |
+| `FraudPattern` | 7 | Reference seed | 7 fraud pattern definitions (card_testing, account_takeover, etc.) |
+| `Evidence` | 0 | Dynamic | Created at runtime by agent investigations |
+| `Decision` | 0 | Dynamic | Created at runtime by agent investigations |
+
+#### Edge Counts
+
+| Edge Type | Loaded Count | Target Vertex Relationship | Notes |
+|---|---|---|---|
+| `MADE` / `MADE_BY` | 590,742 | `Card` → `Transaction` | Exactly 1 card link per transaction |
+| `HAS_IDENTITY` / `IDENTITY_FOR` | 144,432 | `Transaction` → `IdentityRecord` | Exactly 1 identity link per identity record |
+| `FROM_DEVICE` / `DEVICE_USED_IN` | 140,784 | `Transaction` → `DeviceProfile` | Non-empty device fingerprints in identity data |
+| `BILLED_IN` / `HAS_TRANSACTION` | 525,003 | `Transaction` → `BillingRegion` | Transactions with non-null `addr1` |
+| `USES_EMAIL_DOMAIN` / `EMAIL_DOMAIN_USED_IN` | 531,106 | `Transaction` → `EmailDomain` | Transactions with non-null email domains (purchaser / recipient) |
+| `OWNS` / `OWNED_BY` | 13,553 | `Customer` → `Card` | Cardholder ownership link |
+| `MATCHES_PATTERN` / `PATTERN_MATCHED_IN` | 5,565 | `FraudCase` → `FraudPattern` | Links for all historical cases (benchmark cases have no outcome/pattern) |
+| `ON_CARD` / `CARD_IN_CASE` | 5,596 | `FraudCase` → `Card` | Primary card under investigation across cases |
+| `INVOLVES_CUSTOMER` / `CUSTOMER_IN_CASE` | 5,596 | `FraudCase` → `Customer` | Customer under investigation across cases |
+| `INVOLVES_TXN` / `TXN_IN_CASE` | 4,696 | `FraudCase` → `Transaction` | Flagged or first fraud transaction links |
+| `NEXT_TXN` | 0 | `Transaction` → `Transaction` | Sequence edges computed dynamically / as needed |
+| `CONNECTED_TO_CARD` | 0 | `FraudCase` → `Card` | Ring cards linked dynamically / via agent |
+| `LINKED_DEVICE` | 0 | `FraudCase` → `DeviceProfile` | Cited devices linked by agent |
+| `HAS_EVIDENCE` / `HAS_DECISION` | 0 | `FraudCase` → `Evidence`/`Decision` | Populated during agent case closure |
+| `SIMILAR_TO_CASE` | 0 | `FraudCase` → `FraudCase` | Populated during memory retrieval |
+
+### How to Restart if the Container Stops
+If the host machine reboots or Docker Desktop restarts, TigerGraph services do not auto-start by default:
+
+1. **Start the container:**
+   ```bash
+   docker start tigergraph-hhgoa
+   ```
+2. **Start TigerGraph internal services:**
+   ```bash
+   docker exec tigergraph-hhgoa /home/tigergraph/tigergraph/app/cmd/gadmin start all
+   ```
+3. **Verify services are online:**
+   ```bash
+   docker exec tigergraph-hhgoa /home/tigergraph/tigergraph/app/cmd/gadmin status
+   ```
+
+### How to Re-apply Schema or Re-run Data Ingestion
+- **Re-apply schema:**
+  ```bash
+  .\.venv\Scripts\python agent/scripts/apply_schema.py
+  ```
+- **Re-run data ingestion & count verification:**
+  ```bash
+  .\.venv\Scripts\python agent/scripts/load_data.py
+  ```
+
+
