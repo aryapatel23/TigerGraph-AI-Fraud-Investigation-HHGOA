@@ -3,10 +3,49 @@ import sys
 import time
 from pathlib import Path
 from dotenv import load_dotenv
+import pyTigerGraph as tg
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+FRAUD_PATTERNS = [
+    {
+        "pattern_code": "card_testing",
+        "description": "Rapid sequence of low-value transactions followed by high-value attempt",
+        "policy_rules": "R5"
+    },
+    {
+        "pattern_code": "card_not_present_fraud",
+        "description": "High-value online transaction with mismatched billing region",
+        "policy_rules": "R1"
+    },
+    {
+        "pattern_code": "card_not_present_new_device",
+        "description": "Online purchase on previously unseen device with anonymous proxy",
+        "policy_rules": "R2,R4"
+    },
+    {
+        "pattern_code": "out_of_region_use",
+        "description": "Transaction from billing region different from cardholder home region",
+        "policy_rules": "R1"
+    },
+    {
+        "pattern_code": "account_takeover",
+        "description": "Multiple identity changes followed by rapid high-risk transactions",
+        "policy_rules": "R3"
+    },
+    {
+        "pattern_code": "undocumented",
+        "description": "Uncategorized historical fraud pattern",
+        "policy_rules": "R1,R2,R3,R4,R5"
+    },
+    {
+        "pattern_code": "none",
+        "description": "Cleared or legitimate non-fraud activity",
+        "policy_rules": ""
+    }
+]
 
 def main():
     env_path = project_root / ".env"
@@ -33,55 +72,63 @@ def main():
         graphname=graph_name
     )
 
-    # 1. Seed FraudPattern vertices
-    print("\n[Step 1/4] Seeding reference FraudPattern vertices (7 patterns)...")
-    for pattern in FRAUD_PATTERNS:
-        code = pattern["pattern_code"]
-        attrs = {
-            "description": pattern["description"],
-            "policy_rules": pattern["policy_rules"]
-        }
-        conn.upsertVertex("FraudPattern", code, attributes=attrs)
-    print("  -> Seeded 7 FraudPattern vertices successfully.")
-
-    # 2. Check/Apply loading jobs
-    print("\n[Step 2/4] Ensuring loading jobs are compiled in graph...")
-    jobs_file = project_root / "gsql" / "loading_jobs.gsql"
-    with open(jobs_file, "r", encoding="utf-8") as f:
-        jobs_gsql = f.read()
+    # Check if dataset is already loaded
+    do_reload = "--reload" in sys.argv or "--force" in sys.argv
+    current_txns = conn.getVertexCount("Transaction")
     
-    # Check if jobs already exist in graph catalog
-    graph_ls = conn.gsql(f"USE GRAPH {graph_name}\nls")
-    if "load_transactions_job" not in graph_ls:
-        print("  Compiling loading jobs from gsql/loading_jobs.gsql...")
-        compile_res = conn.gsql(jobs_gsql)
-        print(compile_res)
+    if current_txns >= 590742 and not do_reload:
+        print(f"\n[INFO] Graph dataset is already ingested ({current_txns:,d} transactions present).")
+        print("Skipping bulk CSV loading jobs to verify counts immediately. (Pass '--reload' to force re-ingestion).")
     else:
-        print("  Loading jobs already compiled and present in catalog.")
+        # 1. Seed FraudPattern vertices
+        print("\n[Step 1/4] Seeding reference FraudPattern vertices (7 patterns)...")
+        for pattern in FRAUD_PATTERNS:
+            code = pattern["pattern_code"]
+            attrs = {
+                "description": pattern["description"],
+                "policy_rules": pattern["policy_rules"]
+            }
+            conn.upsertVertex("FraudPattern", code, attributes=attrs)
+        print("  -> Seeded 7 FraudPattern vertices successfully.")
 
-    # 3. Execute loading jobs in dependency order
-    print("\n[Step 3/4] Running loading jobs...")
-    jobs_to_run = [
-        ("load_transactions_job", "Transactions & Base Entities (transactions.csv)"),
-        ("load_identity_job", "Identity Records & Device Profiles (identity.csv)"),
-        ("load_cases_job", "Historical & Benchmark Cases (closed_cases_history.csv + case_pack.csv)")
-    ]
+        # 2. Check/Apply loading jobs
+        print("\n[Step 2/4] Ensuring loading jobs are compiled in graph...")
+        jobs_file = project_root / "gsql" / "loading_jobs.gsql"
+        with open(jobs_file, "r", encoding="utf-8") as f:
+            jobs_gsql = f.read()
+        
+        # Check if jobs already exist in graph catalog
+        graph_ls = conn.gsql(f"USE GRAPH {graph_name}\nls")
+        if "load_transactions_job" not in graph_ls:
+            print("  Compiling loading jobs from gsql/loading_jobs.gsql...")
+            compile_res = conn.gsql(jobs_gsql)
+            print(compile_res)
+        else:
+            print("  Loading jobs already compiled and present in catalog.")
 
-    for job_name, job_desc in jobs_to_run:
-        print(f"\n>>> Running: {job_name} ({job_desc})")
-        t0 = time.time()
-        run_gsql = f"USE GRAPH {graph_name}\nRUN LOADING JOB {job_name}"
-        res = conn.gsql(run_gsql)
-        elapsed = time.time() - t0
-        print(f"--- Output for {job_name} ({elapsed:.1f}s) ---")
-        sys.stdout.buffer.write((res + "\n").encode("utf-8", errors="replace"))
+        # 3. Execute loading jobs in dependency order
+        print("\n[Step 3/4] Running loading jobs...")
+        jobs_to_run = [
+            ("load_transactions_job", "Transactions & Base Entities (transactions.csv)"),
+            ("load_identity_job", "Identity Records & Device Profiles (identity.csv)"),
+            ("load_cases_job", "Historical & Benchmark Cases (closed_cases_history.csv + case_pack.csv)")
+        ]
 
-        # Check for errors / capacity limits
-        lower_res = res.lower()
-        if "error" in lower_res or "fail" in lower_res or "limit" in lower_res or "capacity" in lower_res:
-            if "not found" in lower_res or "exception" in lower_res:
-                print(f"[!] Warning/Error detected in {job_name}:")
-                sys.exit(1)
+        for job_name, job_desc in jobs_to_run:
+            print(f"\n>>> Running: {job_name} ({job_desc})")
+            t0 = time.time()
+            run_gsql = f"USE GRAPH {graph_name}\nRUN LOADING JOB {job_name}"
+            res = conn.gsql(run_gsql)
+            elapsed = time.time() - t0
+            print(f"--- Output for {job_name} ({elapsed:.1f}s) ---")
+            sys.stdout.buffer.write((res + "\n").encode("utf-8", errors="replace"))
+
+            # Check for errors / capacity limits
+            lower_res = res.lower()
+            if "error" in lower_res or "fail" in lower_res or "limit" in lower_res or "capacity" in lower_res:
+                if "not found" in lower_res or "exception" in lower_res:
+                    print(f"[!] Warning/Error detected in {job_name}:")
+                    sys.exit(1)
 
     # 4. STEP 4 — Count Verification
     print("\n[Step 4/4] Querying catalog counts to verify loaded graph data...")

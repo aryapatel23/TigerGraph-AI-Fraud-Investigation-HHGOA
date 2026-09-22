@@ -11,6 +11,10 @@ project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+load_dotenv(project_root / ".env")
+
+from agent.investigation_agent import build_investigation_graph
+
 async def main():
     print("================================================================================")
     print("   LangGraph Fraud Investigation Agent — 20 Benchmark Cases Uncertainty Dry Run")

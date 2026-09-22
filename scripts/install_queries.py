@@ -4,10 +4,21 @@ import json
 import time
 from pathlib import Path
 from dotenv import load_dotenv
+import pyTigerGraph as tg
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+QUERY_NAMES = [
+    "get_transaction_context",
+    "get_customer_history",
+    "detect_card_testing",
+    "detect_device_sharing",
+    "detect_out_of_region",
+    "detect_new_device_flag",
+    "get_similar_cases"
+]
 
 def main():
     env_path = project_root / ".env"
@@ -32,24 +43,34 @@ def main():
         graphname=graph_name
     )
 
-    # 1. Read queries file
-    queries_file = project_root / "gsql" / "investigation_queries.gsql"
-    with open(queries_file, "r", encoding="utf-8") as f:
-        gsql_content = f.read()
+    # Check installed queries
+    do_reinstall = "--reinstall" in sys.argv or "--force" in sys.argv
+    installed = conn.getInstalledQueries()
+    installed_names = [k.split("/")[-1] for k in installed.keys()]
+    all_installed = all(q in installed_names for q in QUERY_NAMES)
 
-    print(f"\n[1/3] Creating 7 investigation queries from {queries_file.name}...")
-    create_res = conn.gsql(gsql_content)
-    print("Create Response:")
-    print(create_res)
+    if all_installed and not do_reinstall:
+        print(f"\n[INFO] All {len(QUERY_NAMES)} queries are already compiled and active in GPE.")
+        print("Skipping re-installation to execute immediately. (Pass '--reinstall' to recompile).")
+    else:
+        # 1. Read queries file
+        queries_file = project_root / "gsql" / "investigation_queries.gsql"
+        with open(queries_file, "r", encoding="utf-8") as f:
+            gsql_content = f.read()
 
-    # 2. Install queries
-    print("\n[2/3] Compiling and Installing queries into TigerGraph GPE...")
-    install_stmt = f"USE GRAPH {graph_name}\nINSTALL QUERY " + ", ".join(QUERY_NAMES)
-    t0 = time.time()
-    install_res = conn.gsql(install_stmt)
-    elapsed = time.time() - t0
-    print(f"Install finished in {elapsed:.1f}s")
-    print(install_res)
+        print(f"\n[1/3] Creating 7 investigation queries from {queries_file.name}...")
+        create_res = conn.gsql(gsql_content)
+        print("Create Response:")
+        print(create_res)
+
+        # 2. Install queries
+        print("\n[2/3] Compiling and Installing queries into TigerGraph GPE...")
+        install_stmt = f"USE GRAPH {graph_name}\nINSTALL QUERY " + ", ".join(QUERY_NAMES)
+        t0 = time.time()
+        install_res = conn.gsql(install_stmt)
+        elapsed = time.time() - t0
+        print(f"Install finished in {elapsed:.1f}s")
+        print(install_res)
 
     # 3. Test queries against benchmark HHG-001 (txn: 3514030, cust: C12382, card: C12382-K1)
     print("\n[3/3] Testing all 7 installed queries on benchmark transaction 3514030 (HHG-001)...")

@@ -3,6 +3,7 @@ import re
 import sys
 from pathlib import Path
 from dotenv import load_dotenv
+import pyTigerGraph as tg
 
 project_root = Path(__file__).resolve().parent.parent
 if str(project_root) not in sys.path:
@@ -49,54 +50,60 @@ def main():
         print(f"[ERROR] Failed to initialize connection: {e}")
         sys.exit(1)
 
-    # 3. Check if graph or vertices exist; if so, clean drop before fresh apply
+    # 3. Check if graph or vertices exist
+    do_reset = "--reset" in sys.argv or "--force" in sys.argv
     catalog_ls = conn.gsql("ls")
-    if graph_name in catalog_ls or "Vertex Types:" in catalog_ls:
-        if "The graph " + graph_name in catalog_ls or "Customer" in catalog_ls:
-            print(f"\nExisting graph/vertices detected. Resetting database for clean deployment...")
+    graph_exists = (f"The graph {graph_name}" in catalog_ls) or (f"The graph: {graph_name}" in catalog_ls) or ("Customer" in catalog_ls)
+
+    if graph_exists and not do_reset:
+        print(f"\n[INFO] Graph '{graph_name}' is already deployed and active.")
+        print("Skipping DROP ALL to protect loaded vertices. (Pass '--reset' to wipe and recreate).")
+    else:
+        if graph_exists:
+            print(f"\n[RESET] Existing graph/vertices detected. Resetting database for clean deployment...")
             drop_res = conn.gsql("DROP ALL")
             print(drop_res)
 
-    # 4. Apply schema.gsql
-    print("\n[1/2] Executing gsql/schema.gsql against TigerGraph...")
-    try:
-        response = conn.gsql(schema_content)
-    except Exception as e:
-        response = str(e)
+        # 4. Apply schema.gsql
+        print("\n[1/2] Executing gsql/schema.gsql against TigerGraph...")
+        try:
+            response = conn.gsql(schema_content)
+        except Exception as e:
+            response = str(e)
 
-    print("\n--- GSQL Output ---")
-    sys.stdout.buffer.write((response + "\n").encode("utf-8", errors="replace"))
-    print("-------------------")
+        print("\n--- GSQL Output ---")
+        sys.stdout.buffer.write((response + "\n").encode("utf-8", errors="replace"))
+        print("-------------------")
 
-    # Check for errors in the output
-    has_error = False
-    lower_resp = response.lower()
-    if (
-        "error" in lower_resp
-        or "failed" in lower_resp
-        or "exception" in lower_resp
-        or "encountered" in lower_resp
-        or "fails" in lower_resp
-        or f"the graph {graph_name.lower()} is created" not in lower_resp
-    ):
-        has_error = True
+        # Check for errors in the output
+        has_error = False
+        lower_resp = response.lower()
+        if (
+            "error" in lower_resp
+            or "failed" in lower_resp
+            or "exception" in lower_resp
+            or "encountered" in lower_resp
+            or "fails" in lower_resp
+            or f"the graph {graph_name.lower()} is created" not in lower_resp
+        ):
+            has_error = True
 
-    if has_error:
-        print("\n[!] Schema execution encountered errors.")
-        matches = re.findall(r"line\s+(\d+)", response, re.IGNORECASE)
-        if matches:
-            for match in set(matches):
-                line_no = int(match)
-                print(f"\n>>> Error referenced Line {line_no} in schema.gsql:")
-                start_line = max(1, line_no - 5)
-                end_line = min(len(schema_lines), line_no + 5)
-                for idx in range(start_line, end_line + 1):
-                    prefix = ">>>" if idx == line_no else "   "
-                    line_text = schema_lines[idx - 1]
-                    sys.stdout.buffer.write(f"{prefix} {idx:4d}: {line_text}\n".encode("utf-8", errors="replace"))
-        sys.exit(1)
-    
-    print("\n[SUCCESS] Schema applied cleanly with zero errors!")
+        if has_error:
+            print("\n[!] Schema execution encountered errors.")
+            matches = re.findall(r"line\s+(\d+)", response, re.IGNORECASE)
+            if matches:
+                for match in set(matches):
+                    line_no = int(match)
+                    print(f"\n>>> Error referenced Line {line_no} in schema.gsql:")
+                    start_line = max(1, line_no - 5)
+                    end_line = min(len(schema_lines), line_no + 5)
+                    for idx in range(start_line, end_line + 1):
+                        prefix = ">>>" if idx == line_no else "   "
+                        line_text = schema_lines[idx - 1]
+                        sys.stdout.buffer.write(f"{prefix} {idx:4d}: {line_text}\n".encode("utf-8", errors="replace"))
+            sys.exit(1)
+        
+        print("\n[SUCCESS] Schema applied cleanly with zero errors!")
 
     # 5. STEP 8 — Verification
     print(f"\n[2/2] Verifying graph '{graph_name}' catalog...")
