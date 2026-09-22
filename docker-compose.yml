@@ -1,0 +1,48 @@
+# =============================================================================
+# TigerGraph Community Edition 4.2.2 Docker Compose Configuration
+# Project: Graph-Native Autonomous Fraud Investigation Agent (HH-GOA)
+# =============================================================================
+
+services:
+  tigergraph:
+    image: ${TG_IMAGE:-tigergraph/community:4.2.2}
+    container_name: tigergraph-hhgoa
+    hostname: tigergraph
+    platform: linux/amd64
+    restart: unless-stopped
+
+    ports:
+      - "${TG_PORT:-14240}:14240"      # GraphStudio + RESTPP unified port
+      - "${TG_RESTPP_PORT:-9000}:9000" # Direct RESTPP API port
+      - "${TG_SSH_PORT:-14022}:22"     # GSQL shell / SSH management
+
+    ulimits:
+      nofile:
+        soft: 1000000
+        hard: 1000000
+
+    shm_size: "2gb"
+
+    volumes:
+      - tg_data:/home/tigergraph/tigergraph/data
+      - tg_log:/home/tigergraph/tigergraph/log
+      - ./gsql:/home/tigergraph/gsql:ro
+
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - >-
+          curl -sf http://localhost:14240/api/ping ||
+          curl -sf http://localhost:14240/restpp/echo ||
+          curl -sf http://localhost:9000/echo ||
+          exit 1
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+volumes:
+  tg_data:
+    name: tg-hhgoa-data
+  tg_log:
+    name: tg-hhgoa-log

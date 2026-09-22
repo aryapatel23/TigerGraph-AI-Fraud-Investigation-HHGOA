@@ -1,5 +1,12 @@
 # Graph-Native Autonomous Fraud Investigation Agent (HH-GOA)
 
+[![TigerGraph 4.2.2](https://img.shields.io/badge/TigerGraph-v4.2.2%20CE-orange.svg)](https://www.tigergraph.com/)
+[![Python 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
+[![LangGraph](https://img.shields.io/badge/Orchestrator-LangGraph-darkgreen.svg)](https://github.com/langchain-ai/langgraph)
+[![Groq LLM](https://img.shields.io/badge/LLM-Groq%20openai%2Fgpt--oss--120b-purple.svg)](https://groq.com/)
+[![Test Suite](https://img.shields.io/badge/Pytest-54%2F54%20Passing-brightgreen.svg)](tests/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 > **Autonomous financial fraud investigation powered by TigerGraph, LangGraph, and Groq (`openai/gpt-oss-120b`).**
 
 An autonomous fraud investigation system that transforms static tabular transactions and entity records into a connected graph database (590,742 transactions, 144,432 identity records, and 5,585 cases), evaluates real-time transaction alerts via 7 specialized GSQL queries, grounds reasoning in banking compliance policies, and conducts multi-turn risk investigations. Unlike conventional automated fraud systems that force every ambiguous signal into an artificial binary verdict, this agent is built with **honest uncertainty handling**: when graph and behavioral evidence cannot conclusively prove fraud or innocence, the agent explicitly refuses to fabricate synthetic confirmations or jump to conclusions. Instead, it escalates the case as `uncertain` / `pending_verification`, proposes non-destructive provisional safeguards (e.g., card monitoring, step-up authentication, customer verification requests), and defers irreversible penalties and Suspicious Activity Report (SAR) filings until definitive corroborating evidence is secured.
@@ -83,14 +90,15 @@ An autonomous fraud investigation system that transforms static tabular transact
 ├── agent/                       # Core agent implementation and utility scripts
 │   ├── investigation_agent.py   # 8-node LangGraph autonomous pipeline
 │   ├── policy_rag.py            # GraphRAG policy retriever for rules R1-R10
-│   └── scripts/                 # Operational scripts for data loading, audits, and runs
-│       ├── apply_schema.py      # Deploys gsql/schema.gsql to TigerGraph
-│       ├── load_data.py         # Executes GSQL loading jobs and validates row counts
-│       ├── install_queries.py   # Compiles and installs the 7 core GSQL queries
-│       ├── run_uncertainty_benchmark.py # Executes assessment over 20 benchmark cases
-│       ├── generate_all_answers.py      # Produces final submission JSON answers
-│       ├── audit_pattern_consistency.py # Regression audit for upstream-to-final pattern matching
-│       └── format_benchmark_table.py    # Formats benchmark verification summaries
+│   ├── scripts/                 # Operational scripts for data loading, audits, and runs
+│   │   ├── tg_status.py         # Instant TigerGraph health & vertex count inspector
+│   │   ├── apply_schema.py      # Deploys gsql/schema.gsql to TigerGraph
+│   │   ├── load_data.py         # Executes GSQL loading jobs and validates row counts
+│   │   ├── install_queries.py   # Compiles and installs the 7 core GSQL queries
+│   │   ├── run_uncertainty_benchmark.py # Executes assessment over 20 benchmark cases
+│   │   ├── generate_all_answers.py      # Produces final submission JSON answers
+│   │   ├── audit_pattern_consistency.py # Regression audit for upstream-to-final pattern matching
+│   │   └── format_benchmark_table.py    # Formats benchmark verification summaries
 ├── cases/                       # Benchmark inputs, dry-run evaluations, and generated outputs
 │   ├── dry_run_uncertainty_assessment.json # Canonical LLM uncertainty evaluations
 │   └── HHG-001_answer.json ... HHG-020_answer.json # 20 final verified case answer packages
@@ -106,6 +114,7 @@ An autonomous fraud investigation system that transforms static tabular transact
 │       ├── closed_cases_history.csv # 5,565 historical resolved cases
 │       └── case_pack.csv        # 20 active benchmark evaluation cases
 ├── docs/                        # Architecture and data reconciliation documentation
+│   ├── demo_video_guide.md      # Scene-by-scene presentation & recording guide for judges
 │   ├── data-dictionary.md       # Exact field specifications and row-count reconciliations
 │   └── schema-design.md         # Vertex/edge topology design and trade-off rationales
 ├── gsql/                        # Native TigerGraph GSQL definitions
@@ -118,6 +127,7 @@ An autonomous fraud investigation system that transforms static tabular transact
 │   ├── test_data_load_counts.py # Data integrity assertions against data dictionary
 │   ├── test_pattern_consistency.py # 20-case pattern fidelity regression tests
 │   └── test_sar_consistency.py  # Regulatory SAR-to-verdict alignment tests
+├── docker-compose.yml           # Container orchestration with health checks and volume persistence
 ├── .env.example                 # Template for environment and database credentials
 ├── pytest.ini                   # Pytest configuration and warning filters
 ├── requirements.txt             # Runtime production dependencies
@@ -157,8 +167,14 @@ This system was engineered with an emphasis on production rigor, data veracity, 
 - Groq API Key
 
 ### 2. Start TigerGraph Community Edition Container
-Pull the TigerGraph Community Edition 4.2.2 Docker image, run the container with persistent storage, and initialize the system services:
+You can start TigerGraph using either **Docker Compose** or direct **Docker run**:
 
+#### Option A: Docker Compose (Recommended)
+```bash
+docker compose up -d
+```
+
+#### Option B: Direct Docker Run
 ```bash
 # Pull the community image
 docker pull tigergraph/community:4.2.2
@@ -172,6 +188,13 @@ docker run -d --name tigergraph-hhgoa \
 # Initialize TigerGraph services
 docker exec -it tigergraph-hhgoa gadmin start
 ```
+
+#### Verify Container Readiness
+Check that TigerGraph services and RESTPP are operational:
+```bash
+python agent/scripts/tg_status.py
+```
+
 
 ### 3. Configure Environment Variables
 Copy [.env.example](file:///d:/HH%20X%20Tiger/.env.example) to `.env` and configure your credentials:
