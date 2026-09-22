@@ -161,6 +161,7 @@ An autonomous fraud investigation system that transforms static tabular transact
 │   ├── policy_rag.py            # GraphRAG policy retriever for rules R1-R10
 │   ├── scripts/                 # Operational scripts for data loading, audits, and runs
 │   │   ├── tg_status.py         # Instant TigerGraph health & vertex count inspector
+│   │   ├── smoke_mcp.py         # Standalone TigerGraph MCP tool execution verifier
 │   │   ├── apply_schema.py      # Deploys gsql/schema.gsql to TigerGraph
 │   │   ├── load_data.py         # Executes GSQL loading jobs and validates row counts
 │   │   ├── install_queries.py   # Compiles and installs the 7 core GSQL queries
@@ -171,6 +172,8 @@ An autonomous fraud investigation system that transforms static tabular transact
 ├── cases/                       # Benchmark inputs, dry-run evaluations, and generated outputs
 │   ├── dry_run_uncertainty_assessment.json # Canonical LLM uncertainty evaluations
 │   └── HHG-001_answer.json ... HHG-020_answer.json # 20 final verified case answer packages
+├── config/                      # Agent & protocol configurations
+│   └── mcp_tools.yaml           # Curated TigerGraph MCP whitelist tool declarations
 ├── dashboard/                   # Self-contained web review interface
 │   ├── server.py                # Python HTTP/REST backend (port 8080)
 │   ├── index.html               # Clean, accessible light-theme single-page app

@@ -1,0 +1,48 @@
+# ============================================================================
+# Curated TigerGraph MCP Tool Surface Configuration
+# Project: Graph-Native Autonomous Fraud Investigation Agent (HH-GOA)
+#
+# Filters the tools exposed by tigergraph-mcp to the safe subset utilized
+# by the autonomous investigation agent, strictly excluding destructive
+# operations (drop_graph, clear_graph_data, delete_nodes, etc.).
+# ============================================================================
+
+allowed_categories:
+  - schema_introspection
+  - installed_query_execution
+  - vertex_edge_traversal
+  - graph_write_back
+
+whitelisted_tools:
+  # 1. Schema Introspection & Statistics
+  - tigergraph__list_graphs
+  - tigergraph__get_global_schema
+  - tigergraph__get_graph_schema
+  - tigergraph__show_graph_details
+  - tigergraph__get_vertex_count
+  - tigergraph__get_edge_count
+
+  # 2. Installed GSQL Query Execution
+  - tigergraph__run_installed_query
+  - tigergraph__get_query_metadata
+  - tigergraph__is_query_installed
+  - tigergraph__show_query
+
+  # 3. Vertex / Edge Traversal & Neighborhood Inspection
+  - tigergraph__get_node
+  - tigergraph__get_nodes
+  - tigergraph__get_edge
+  - tigergraph__get_edges
+  - tigergraph__get_neighbors
+  - tigergraph__get_node_edges
+
+  # 4. Graph Write-Back & Case Persistence
+  - tigergraph__add_node
+  - tigergraph__add_nodes
+  - tigergraph__add_edge
+  - tigergraph__add_edges
+
+# Excluded categories (enforced for security & compliance):
+#   - Destructive operations: drop_graph, clear_graph_data, delete_node, delete_edge, drop_query
+#   - Dynamic DDL / arbitrary query execution: gsql, generate_gsql, create_graph, update_schema
+#   - Administrative & batch loading: create_loading_job, run_loading_job_*, drop_all_data_sources
